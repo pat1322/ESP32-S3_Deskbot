@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Deskbot</title>
 <link rel="stylesheet" href="/static/css/style.css">
 </head>
@@ -41,6 +41,7 @@
       <div class="now-playing-row">
         <span class="status-pill" id="now-status" data-status="idle">Idle</span>
         <span class="now-playing-title muted" id="now-title">Nothing queued</span>
+        <div class="now-playing-actions" id="now-actions"></div>
       </div>
     </section>
 
@@ -53,17 +54,44 @@
   </main>
 
   <aside class="desk-unit">
-    <div class="screen">
-      <div class="orb o1"></div>
-      <div class="orb o2"></div>
-      <div class="orb o3"></div>
+    <div class="screen" id="screen" data-theme="drift">
+      <div class="fx-drift">
+        <div class="orb o1"></div>
+        <div class="orb o2"></div>
+        <div class="orb o3"></div>
+      </div>
+      <div class="fx-pulse">
+        <div class="ring r1"></div>
+        <div class="ring r2"></div>
+        <div class="ring r3"></div>
+      </div>
+      <div class="fx-starfield">
+        <div class="star s1"></div>
+        <div class="star s2"></div>
+        <div class="star s3"></div>
+        <div class="star s4"></div>
+        <div class="star s5"></div>
+        <div class="star s6"></div>
+      </div>
       <div class="screen-content">
         <div class="clock" id="clock">--:--:--</div>
         <div class="date" id="date">-</div>
         <div class="desk-status" id="desk-status">no tasks pending</div>
       </div>
     </div>
-    <div class="desk-label">To-do</div>
+
+    <div class="desk-label">Background</div>
+    <div class="theme-picker" id="theme-picker">
+      <button type="button" data-theme="drift">Drift</button>
+      <button type="button" data-theme="pulse">Pulse</button>
+      <button type="button" data-theme="starfield">Stars</button>
+      <button type="button" data-theme="minimal">Minimal</button>
+    </div>
+
+    <div class="desk-label todo-label-row">
+      <span>To-do</span>
+      <a href="#" id="clear-done">Clear done</a>
+    </div>
     <div class="todo-panel">
       <form class="todo-add" id="todo-form">
         <input type="text" id="todo-input" placeholder="Add a task…" autocomplete="off">

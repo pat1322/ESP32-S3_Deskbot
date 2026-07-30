@@ -7,7 +7,7 @@ from starlette.staticfiles import StaticFiles
 
 from .config import settings
 from .db import Base, engine
-from .routers import queue, search, todos, video, web
+from .routers import device, queue, search, settings as settings_router, todos, video, web
 from .services import cleanup, job_worker
 
 
@@ -33,6 +33,8 @@ app.include_router(video.router)
 app.include_router(todos.router)
 app.include_router(search.router)
 app.include_router(queue.router)
+app.include_router(settings_router.router)
+app.include_router(device.router)
 app.include_router(web.router)
 
 static_dir = os.path.join(os.path.dirname(__file__), "static")

@@ -11,7 +11,13 @@ async def _run(*args: str) -> None:
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    _, stderr = await proc.communicate()
+    try:
+        _, stderr = await proc.communicate()
+    except asyncio.CancelledError:
+        # don't leave an orphaned ffmpeg process burning CPU after a cancel
+        proc.kill()
+        await proc.wait()
+        raise
     if proc.returncode != 0:
         raise FfmpegError(stderr.decode(errors="replace")[-2000:])
 

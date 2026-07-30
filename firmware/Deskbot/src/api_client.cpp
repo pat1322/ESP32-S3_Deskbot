@@ -60,12 +60,12 @@ void clearCurrentJob() {
     http.end();
 }
 
-bool getTodoSummary(int& pendingCount, String& nextTask) {
+bool getDeviceState(int& pendingCount, String& nextTask, String& bgTheme) {
     WiFiClientSecure cli;
     cli.setInsecure();
     cli.setConnectionTimeout(8000);
     HTTPClient http;
-    http.begin(cli, serverBase() + "/todos/summary");
+    http.begin(cli, serverBase() + "/device/state");
     http.addHeader("X-Api-Key", DESKBOT_API_KEY);
     http.setTimeout(8000);
     int code = http.GET();
@@ -77,5 +77,6 @@ bool getTodoSummary(int& pendingCount, String& nextTask) {
     if (deserializeJson(doc, resp) != DeserializationError::Ok) return false;
     pendingCount = doc["pending_count"] | 0;
     nextTask = doc["next_task"] | "";
+    bgTheme = doc["bg_theme"] | "drift";
     return true;
 }

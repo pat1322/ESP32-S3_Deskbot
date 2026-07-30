@@ -29,7 +29,7 @@
 #define AUDIO_PRIME_MS       350
 #define FALLBACK_FPS         15
 
-#define JOB_POLL_INTERVAL_MS  5000
-#define TODO_POLL_INTERVAL_MS 45000
-#define CLOCK_TICK_MS         1000
-#define ANIM_TICK_MS          60
+#define JOB_POLL_INTERVAL_MS          5000
+#define DEVICE_STATE_POLL_INTERVAL_MS 45000
+#define CLOCK_TICK_MS                 1000
+#define ANIM_TICK_MS                  60

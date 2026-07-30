@@ -10,6 +10,9 @@ from .db import Base
 #                                                    \-> error
 JOB_ACTIVE_STATUSES = ("queued", "downloading", "encoding", "ready", "playing")
 
+BG_THEMES = ("drift", "pulse", "starfield", "minimal")
+SETTINGS_ID = 1
+
 
 class Job(Base):
     __tablename__ = "jobs"
@@ -29,6 +32,17 @@ class Job(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     ready_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class Settings(Base):
+    """Single-row table (id is always SETTINGS_ID) holding device-wide prefs."""
+
+    __tablename__ = "settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    bg_theme: Mapped[str] = mapped_column(String(16), default="drift")
+
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class Todo(Base):

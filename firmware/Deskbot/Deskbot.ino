@@ -10,8 +10,8 @@
 #include "src/idle_screen.h"
 #include "src/state_machine.h"
 
-static uint32_t lastJobPollMs  = 0;
-static uint32_t lastTodoPollMs = 0;
+static uint32_t lastJobPollMs    = 0;
+static uint32_t lastDeviceStateMs = 0;
 
 static void handleVideoJobIfAny() {
     if (WiFi.status() != WL_CONNECTED) { WiFi.reconnect(); return; }
@@ -39,12 +39,13 @@ static void handleVideoJobIfAny() {
     lastJobPollMs = millis();
 }
 
-static void handleTodoPoll() {
+static void handleDeviceStatePoll() {
     if (WiFi.status() != WL_CONNECTED) return;
     int pending;
-    String nextTask;
-    if (getTodoSummary(pending, nextTask)) {
+    String nextTask, bgTheme;
+    if (getDeviceState(pending, nextTask, bgTheme)) {
         idleScreenSetTodoSummary(pending, nextTask);
+        idleScreenSetTheme(bgTheme);
     }
 }
 
@@ -91,9 +92,9 @@ void loop() {
                 lastJobPollMs = now;
                 handleVideoJobIfAny();
             }
-            if (now - lastTodoPollMs >= TODO_POLL_INTERVAL_MS) {
-                lastTodoPollMs = now;
-                handleTodoPoll();
+            if (now - lastDeviceStateMs >= DEVICE_STATE_POLL_INTERVAL_MS) {
+                lastDeviceStateMs = now;
+                handleDeviceStatePoll();
             }
             break;
         }

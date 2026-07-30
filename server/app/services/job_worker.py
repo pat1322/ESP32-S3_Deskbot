@@ -13,6 +13,8 @@ logger = logging.getLogger("deskbot.job_worker")
 
 _queue: asyncio.Queue[str] = asyncio.Queue()
 _worker_task: asyncio.Task | None = None
+_running_tasks: dict[str, asyncio.Task] = {}
+_shutting_down = False
 
 
 def job_dir(job_id: str) -> str:
@@ -23,12 +25,28 @@ async def enqueue(job_id: str) -> None:
     await _queue.put(job_id)
 
 
+def cancel_job(job_id: str) -> bool:
+    """Best-effort cancel of a job that's actively downloading/encoding.
+
+    Killing the yt-dlp download's worker thread isn't possible (Python
+    threads can't be force-stopped), so a cancel during the download phase
+    leaves that thread to finish in the background — its result is simply
+    discarded when process_job unwinds. An in-flight ffmpeg subprocess *is*
+    killed directly (see ffmpeg_service._run).
+    """
+    task = _running_tasks.get(job_id)
+    if task is None:
+        return False
+    task.cancel()
+    return True
+
+
 async def process_job(job_id: str) -> None:
     db = SessionLocal()
     try:
         job = db.get(Job, job_id)
-        if job is None:
-            return
+        if job is None or job.status != "queued":
+            return  # stale/already-cancelled job popped off the queue
 
         out_dir = job_dir(job_id)
         os.makedirs(out_dir, exist_ok=True)
@@ -69,6 +87,14 @@ async def process_job(job_id: str) -> None:
             db.commit()
             logger.info("job %s ready (%s)", job_id, job.title)
 
+        except asyncio.CancelledError:
+            logger.info("job %s cancelled by user", job_id)
+            job.status = "error"
+            job.error_message = "Cancelled by user"
+            db.commit()
+            shutil.rmtree(out_dir, ignore_errors=True)
+            raise
+
         except Exception as exc:  # noqa: BLE001 - job errors must never crash the worker
             logger.exception("job %s failed", job_id)
             job.status = "error"
@@ -82,9 +108,20 @@ async def process_job(job_id: str) -> None:
 async def _worker_loop() -> None:
     while True:
         job_id = await _queue.get()
+        task = asyncio.create_task(process_job(job_id))
+        _running_tasks[job_id] = task
         try:
-            await process_job(job_id)
+            await task
+        except asyncio.CancelledError:
+            if _shutting_down:
+                _queue.task_done()
+                raise
+            # a single job was cancelled (task.cancel() via cancel_job) —
+            # process_job already handled cleanup, keep the loop running.
+        except Exception:
+            logger.exception("job %s failed unexpectedly", job_id)
         finally:
+            _running_tasks.pop(job_id, None)
             _queue.task_done()
 
 
@@ -95,9 +132,14 @@ def start() -> None:
 
 
 async def stop() -> None:
-    global _worker_task
+    global _worker_task, _shutting_down
+    _shutting_down = True
     if _worker_task is not None:
         _worker_task.cancel()
+        try:
+            await _worker_task
+        except asyncio.CancelledError:
+            pass
         _worker_task = None
 
 

@@ -54,14 +54,51 @@ async function api(path, opts = {}) {
 
 function tickClock() {
   const now = new Date();
-  const hh = String(now.getHours()).padStart(2, '0');
+  let hh = now.getHours() % 12;
+  if (hh === 0) hh = 12;
   const mm = String(now.getMinutes()).padStart(2, '0');
   const ss = String(now.getSeconds()).padStart(2, '0');
-  $('#clock').textContent = `${hh}:${mm}:${ss}`;
+  const ampm = now.getHours() < 12 ? 'AM' : 'PM';
+  $('#clock').textContent = `${hh}:${mm}:${ss} ${ampm}`;
   $('#date').textContent = now.toLocaleDateString(undefined, {
     weekday: 'short', month: 'short', day: 'numeric',
   });
 }
+
+// ── Background theme ──────────────────────────────────────────────────
+
+async function loadSettings() {
+  try {
+    const res = await api('/api/settings');
+    const data = await res.json();
+    applyTheme(data.bg_theme);
+  } catch {
+    // fall back to whatever the screen already shows
+  }
+}
+
+function applyTheme(theme) {
+  $('#screen').dataset.theme = theme;
+  for (const btn of document.querySelectorAll('#theme-picker button')) {
+    btn.classList.toggle('active', btn.dataset.theme === theme);
+  }
+}
+
+$('#theme-picker').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const theme = btn.dataset.theme;
+  applyTheme(theme); // optimistic
+  try {
+    await api('/api/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bg_theme: theme }),
+    });
+  } catch {
+    loadSettings(); // revert to server truth on failure
+  }
+});
 
 function updateDeskStatus(todos) {
   const pending = todos.filter((t) => !t.done);
@@ -162,30 +199,51 @@ const STATUS_LABELS = {
   error: 'Error',
 };
 
+let currentJobId = null;
+
 async function pollNowPlaying() {
   try {
     const res = await api('/api/jobs?active=1');
     const jobs = await res.json();
     const pill = $('#now-status');
     const title = $('#now-title');
+    const actions = $('#now-actions');
     if (jobs.length === 0) {
+      currentJobId = null;
       pill.dataset.status = 'idle';
       pill.textContent = 'Idle';
       title.textContent = 'Nothing queued';
       title.classList.add('muted');
+      actions.innerHTML = '';
     } else {
       const job = jobs[0];
+      currentJobId = job.job_id;
       pill.dataset.status = job.status;
       pill.textContent = STATUS_LABELS[job.status] || job.status;
       title.textContent = job.status === 'error'
         ? (job.error_message || 'Something went wrong')
         : (job.title || 'Loading title…');
       title.classList.remove('muted');
+      actions.innerHTML = job.status === 'error'
+        ? '<button type="button" class="mini-btn" data-action="retry">Retry</button>'
+        : '<button type="button" class="mini-btn" data-action="cancel">Cancel</button>';
     }
   } catch {
     // transient network hiccup, next poll will retry
   }
 }
+
+$('#now-actions').addEventListener('click', async (e) => {
+  const btn = e.target.closest('.mini-btn');
+  if (!btn || !currentJobId) return;
+  btn.disabled = true;
+  try {
+    await api(`/api/jobs/${currentJobId}/${btn.dataset.action}`, { method: 'POST' });
+  } catch {
+    // ignore, poll will resync
+  }
+  pollNowPlaying();
+});
 
 // ── Todos ────────────────────────────────────────────────────────────
 
@@ -241,6 +299,12 @@ $('#todo-list').addEventListener('click', async (e) => {
   loadTodos();
 });
 
+$('#clear-done').addEventListener('click', async (e) => {
+  e.preventDefault();
+  await api('/api/todos/clear_completed', { method: 'POST' });
+  loadTodos();
+});
+
 // ── Boot ─────────────────────────────────────────────────────────────
 
 let booted = false;
@@ -249,6 +313,7 @@ function boot() {
   booted = true;
   tickClock();
   setInterval(tickClock, 1000);
+  loadSettings();
   loadTodos();
   pollNowPlaying();
   setInterval(pollNowPlaying, 2500);

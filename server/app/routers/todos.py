@@ -1,29 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ..auth import require_device_or_web, require_web_session
+from ..auth import require_web_session
 from ..db import get_db
 from ..models import Todo
-from ..schemas import TodoIn, TodoOut, TodoPatch, TodoSummaryOut
+from ..schemas import TodoIn, TodoOut, TodoPatch
 
-router = APIRouter(tags=["todos"])
-
-
-@router.get("/todos/summary", response_model=TodoSummaryOut, dependencies=[Depends(require_device_or_web)])
-def summary(db: Session = Depends(get_db)):
-    pending = db.query(Todo).filter(Todo.done.is_(False)).order_by(Todo.created_at.asc()).all()
-    return TodoSummaryOut(
-        pending_count=len(pending),
-        next_task=pending[0].text if pending else None,
-    )
+router = APIRouter(tags=["todos"], dependencies=[Depends(require_web_session)])
 
 
-@router.get("/api/todos", response_model=list[TodoOut], dependencies=[Depends(require_web_session)])
+@router.get("/api/todos", response_model=list[TodoOut])
 def list_todos(db: Session = Depends(get_db)):
     return db.query(Todo).order_by(Todo.done.asc(), Todo.created_at.asc()).all()
 
 
-@router.post("/api/todos", response_model=TodoOut, dependencies=[Depends(require_web_session)])
+@router.post("/api/todos", response_model=TodoOut)
 def create_todo(body: TodoIn, db: Session = Depends(get_db)):
     text = body.text.strip()
     if not text:
@@ -35,7 +26,7 @@ def create_todo(body: TodoIn, db: Session = Depends(get_db)):
     return todo
 
 
-@router.patch("/api/todos/{todo_id}", response_model=TodoOut, dependencies=[Depends(require_web_session)])
+@router.patch("/api/todos/{todo_id}", response_model=TodoOut)
 def update_todo(todo_id: int, body: TodoPatch, db: Session = Depends(get_db)):
     todo = db.get(Todo, todo_id)
     if todo is None:
@@ -46,7 +37,7 @@ def update_todo(todo_id: int, body: TodoPatch, db: Session = Depends(get_db)):
     return todo
 
 
-@router.delete("/api/todos/{todo_id}", dependencies=[Depends(require_web_session)])
+@router.delete("/api/todos/{todo_id}")
 def delete_todo(todo_id: int, db: Session = Depends(get_db)):
     todo = db.get(Todo, todo_id)
     if todo is None:
@@ -54,3 +45,10 @@ def delete_todo(todo_id: int, db: Session = Depends(get_db)):
     db.delete(todo)
     db.commit()
     return {"ok": True}
+
+
+@router.post("/api/todos/clear_completed")
+def clear_completed(db: Session = Depends(get_db)):
+    deleted = db.query(Todo).filter(Todo.done.is_(True)).delete(synchronize_session=False)
+    db.commit()
+    return {"deleted": deleted}
