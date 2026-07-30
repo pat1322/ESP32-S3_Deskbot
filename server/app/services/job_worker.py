@@ -74,7 +74,9 @@ async def process_job(job_id: str) -> None:
             mjpeg_path = os.path.join(out_dir, "video.mjpeg")
             await asyncio.gather(
                 ffmpeg_service.extract_audio(result.source_path, mp3_path),
-                ffmpeg_service.extract_mjpeg(result.source_path, mjpeg_path, fps=job.fps),
+                ffmpeg_service.extract_mjpeg(
+                    result.source_path, mjpeg_path, fps=job.fps, quality=settings.jpeg_q
+                ),
             )
 
             if os.path.exists(result.source_path):
@@ -114,8 +116,7 @@ async def _worker_loop() -> None:
             await task
         except asyncio.CancelledError:
             if _shutting_down:
-                _queue.task_done()
-                raise
+                raise  # finally below still runs task_done() exactly once
             # a single job was cancelled (task.cancel() via cancel_job) —
             # process_job already handled cleanup, keep the loop running.
         except Exception:

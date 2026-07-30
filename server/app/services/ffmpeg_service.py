@@ -34,13 +34,21 @@ async def extract_audio(source_path: str, mp3_path: str) -> None:
     )
 
 
-async def extract_mjpeg(source_path: str, mjpeg_path: str, fps: int, width: int = 320, height: int = 240) -> None:
+async def extract_mjpeg(
+    source_path: str,
+    mjpeg_path: str,
+    fps: int,
+    quality: int = 10,
+    width: int = 320,
+    height: int = 240,
+) -> None:
+    # quality is ffmpeg's mjpeg -q:v scale: 2 (best/largest) .. 31 (worst/smallest).
     vf = f"fps={fps},scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
     await _run(
         "ffmpeg", "-y",
         "-i", source_path,
         "-vf", vf,
-        "-q:v", "6",
+        "-q:v", str(quality),
         "-f", "mjpeg",
         "-an",
         mjpeg_path,

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..auth import require_web_session
+from ..config import settings
 from ..db import get_db
 from ..models import JOB_ACTIVE_STATUSES, Job
 from ..schemas import JobOut, QueueRequest
@@ -28,7 +29,7 @@ async def queue_video(body: QueueRequest, db: Session = Depends(get_db)):
     if existing is not None:
         raise HTTPException(status_code=409, detail="a job is already in progress")
 
-    job = Job(video_id=body.video_id.strip())
+    job = Job(video_id=body.video_id.strip(), fps=settings.default_fps)
     db.add(job)
     db.commit()
     db.refresh(job)

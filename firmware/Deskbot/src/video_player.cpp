@@ -222,7 +222,11 @@ bool playVideo(const String& jobId, const String& title) {
             uint32_t elapsedMs  = millis() - playStartMs;
             uint32_t expectedMs = frameCount * frameMs;
 
-            if (elapsedMs <= expectedMs + frameMs * 10) {
+            // Drop frames as soon as we fall meaningfully behind schedule
+            // rather than letting a backlog build — a tight catch-up
+            // window keeps motion feeling steady instead of bursty
+            // (decode-everything, then skip several frames at once).
+            if (elapsedMs <= expectedMs + frameMs * 3) {
                 while (millis() - playStartMs < expectedMs) yield();
 
                 int frameSize = frameEnd - frameStart + 1;

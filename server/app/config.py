@@ -17,8 +17,13 @@ class Settings(BaseSettings):
     # Media scratch space
     media_dir: str = "./media"
 
-    # Video pipeline tuning
-    default_fps: int = 15
+    # Video pipeline tuning — favors smooth/reliable playback on the
+    # ESP32-S3's SPI/JPEG-decode budget over image quality. Lower fps and
+    # higher jpeg_q (more compression) both shrink per-frame decode time
+    # and network bandwidth, which is what actually keeps the device from
+    # falling behind and dropping frames.
+    default_fps: int = 10
+    jpeg_q: int = 10
     max_job_duration_s: int = 20 * 60
     ready_grace_period_s: int = 15 * 60
     error_grace_period_s: int = 5 * 60
