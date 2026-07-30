@@ -39,13 +39,17 @@ static volatile bool g_startPlayback   = false;
 static volatile bool g_audioTaskRunning = false;
 static String        g_jobId           = "";
 
-// High: the server's default-quality encode. Low: a cheaper fps/JPEG-
-// compression encode of the same video, generated alongside the high tier
-// at queue time (see server/app/services/job_worker.py) so it's available
-// instantly on fallback — no on-demand re-encode needed.
-enum class VideoTier { HIGH, LOW };
+// Tier_High: the server's default-quality encode. Tier_Low: a cheaper
+// fps/JPEG-compression encode of the same video, generated alongside the
+// high tier at queue time (see server/app/services/job_worker.py) so it's
+// available instantly on fallback — no on-demand re-encode needed.
+// Named Tier_High/Tier_Low (not just High/Low) because Arduino.h defines
+// HIGH/LOW as plain #define macros (digital pin levels) that would
+// textually clobber unscoped-looking enumerator names at every use site,
+// even inside an `enum class`.
+enum class VideoTier { Tier_High, Tier_Low };
 
-static const char* tierName(VideoTier t) { return t == VideoTier::HIGH ? "high" : "low"; }
+static const char* tierName(VideoTier t) { return t == VideoTier::Tier_High ? "high" : "low"; }
 
 // Cheap pre-fetch signal for the very first attempt — a real throughput
 // measurement isn't available until something is already streaming (see
@@ -53,8 +57,8 @@ static const char* tierName(VideoTier t) { return t == VideoTier::HIGH ? "high" 
 // pick the starting point. Reuses idle_screen.cpp's "-75dBm = weak"
 // threshold so the on-screen signal bars and this decision agree.
 static VideoTier pickInitialTier() {
-    if (WiFi.status() != WL_CONNECTED) return VideoTier::LOW;
-    return (WiFi.RSSI() <= -75) ? VideoTier::LOW : VideoTier::HIGH;
+    if (WiFi.status() != WL_CONNECTED) return VideoTier::Tier_Low;
+    return (WiFi.RSSI() <= -75) ? VideoTier::Tier_Low : VideoTier::Tier_High;
 }
 
 static int jpegDrawCallback(JPEGDRAW* pDraw) {
@@ -235,10 +239,10 @@ bool playVideo(const String& jobId, const String& title) {
 
         // Weak connection caught before a single frame has been drawn —
         // restart at the low tier now, invisibly to the user.
-        if (tier == VideoTier::HIGH && !usedPrePlaybackCorrection && prefillBps < VIDEO_PREFILL_MIN_BPS_HIGH) {
+        if (tier == VideoTier::Tier_High && !usedPrePlaybackCorrection && prefillBps < VIDEO_PREFILL_MIN_BPS_HIGH) {
             Serial.println("[Video] Prefill throughput too low for high tier, switching to low");
             usedPrePlaybackCorrection = true;
-            tier = VideoTier::LOW;
+            tier = VideoTier::Tier_Low;
             g_playing = false;
             vhttp.end();
             continue;
@@ -331,7 +335,7 @@ bool playVideo(const String& jobId, const String& title) {
                     float skipRatio = fpsFrames > 0 ? (float)discardedFrames / fpsFrames : 0.0f;
                     Serial.printf("[Video] %.1f fps, %.0f%% skipped (tier=%s)\n",
                                   fpsFrames / 5.0f, skipRatio * 100, tierName(tier));
-                    if (tier == VideoTier::HIGH && !usedMidStreamDowngrade && skipRatio > VIDEO_SKIP_RATIO_DOWNGRADE) {
+                    if (tier == VideoTier::Tier_High && !usedMidStreamDowngrade && skipRatio > VIDEO_SKIP_RATIO_DOWNGRADE) {
                         needsMidStreamDowngrade = true;
                     }
                     fpsFrames       = 0;
@@ -360,7 +364,7 @@ bool playVideo(const String& jobId, const String& title) {
             Serial.println("[Video] Falling behind on high tier, restarting at low");
             showScreen("Adjusting...", "Switching to a lower quality stream");
             usedMidStreamDowngrade = true;
-            tier = VideoTier::LOW;
+            tier = VideoTier::Tier_Low;
             continue;
         }
 

@@ -2,6 +2,7 @@
 
 #include <WiFi.h>
 #include "wifi_store.h"
+#include "../config.h"
 
 bool connectWiFi(uint32_t timeoutMs) {
     String ssid, pass;
