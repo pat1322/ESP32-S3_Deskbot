@@ -57,14 +57,22 @@ def clear_current(db: Session = Depends(get_db)):
 
 
 @router.get("/video/stream/{job_id}.mjpeg")
-def stream_mjpeg(job_id: str, db: Session = Depends(get_db)):
+def stream_mjpeg(job_id: str, tier: str = "high", db: Session = Depends(get_db)):
     job = db.get(Job, job_id)
-    if job is None or not job.mjpeg_path or not os.path.exists(job.mjpeg_path):
+    if job is None:
+        raise HTTPException(status_code=404, detail="stream not available")
+
+    if tier == "low" and job.mjpeg_path_low and os.path.exists(job.mjpeg_path_low):
+        path, fps = job.mjpeg_path_low, job.fps_low
+    else:
+        path, fps = job.mjpeg_path, job.fps
+
+    if not path or not os.path.exists(path):
         raise HTTPException(status_code=404, detail="stream not available")
 
     def generate():
-        yield bytes([job.fps])
-        yield from _file_chunks(job.mjpeg_path)
+        yield bytes([fps])
+        yield from _file_chunks(path)
 
     return StreamingResponse(generate(), media_type="video/x-motion-jpeg")
 

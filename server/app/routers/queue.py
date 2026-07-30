@@ -29,7 +29,7 @@ async def queue_video(body: QueueRequest, db: Session = Depends(get_db)):
     if existing is not None:
         raise HTTPException(status_code=409, detail="a job is already in progress")
 
-    job = Job(video_id=body.video_id.strip(), fps=settings.default_fps)
+    job = Job(video_id=body.video_id.strip(), fps=settings.default_fps, fps_low=settings.low_fps)
     db.add(job)
     db.commit()
     db.refresh(job)
@@ -73,6 +73,7 @@ async def cancel_job(job_id: str, db: Session = Depends(get_db)):
         job.status = "error"
         job.error_message = "Cancelled by user"
         job.mjpeg_path = None
+        job.mjpeg_path_low = None
         job.mp3_path = None
         db.commit()
         db.refresh(job)
@@ -94,6 +95,7 @@ async def retry_job(job_id: str, db: Session = Depends(get_db)):
     job.status = "queued"
     job.error_message = None
     job.mjpeg_path = None
+    job.mjpeg_path_low = None
     job.mp3_path = None
     db.commit()
     db.refresh(job)

@@ -9,7 +9,13 @@
 
 #pragma once
 
-// WiFi
+// WiFi — first-boot seed only. The device's real WiFi credentials live in
+// NVS (flash), not here: on its very first boot it copies these values in
+// once, and from then on only NVS is consulted. To change networks later,
+// use the on-device "Deskbot-Setup" portal (holds if WiFi keeps failing to
+// connect) or the website's Network panel (if it's already online) —
+// reflashing with new values here won't do anything after first boot.
+// See the README's "WiFi setup" section.
 #define WIFI_SSID_CFG   "YOUR_WIFI_SSID"
 #define WIFI_PASS_CFG   "YOUR_WIFI_PASSWORD"
 

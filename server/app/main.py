@@ -6,7 +6,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.staticfiles import StaticFiles
 
 from .config import settings
-from .db import Base, engine
+from .db import sync_schema
 from .routers import device, queue, search, settings as settings_router, todos, video, web
 from .services import cleanup, job_worker
 
@@ -14,7 +14,7 @@ from .services import cleanup, job_worker
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     os.makedirs(settings.media_dir, exist_ok=True)
-    Base.metadata.create_all(bind=engine)
+    sync_schema()
 
     job_worker.start()
     cleanup.start()
@@ -27,7 +27,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Deskbot", lifespan=lifespan)
-app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.session_secret,
+    same_site="lax",
+    https_only=settings.session_cookie_secure,
+)
 
 app.include_router(video.router)
 app.include_router(todos.router)

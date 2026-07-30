@@ -2,8 +2,10 @@
 
 #include <Arduino.h>
 
-// Blocking connect with a timeout, mirrors VideoTester.ino's approach.
-// Returns true if connected within timeoutMs.
+// Blocking connect with a timeout, using whatever credentials are saved in
+// NVS (see wifi_store.h). Returns false immediately, without attempting a
+// connection, if nothing's been saved yet. Returns true if connected
+// within timeoutMs.
 bool connectWiFi(uint32_t timeoutMs = 20000);
 
 // Call once after the first successful WiFi connect. ESP32's SNTP client

@@ -33,3 +33,18 @@
 #define DEVICE_STATE_POLL_INTERVAL_MS 45000
 #define CLOCK_TICK_MS                 1000
 #define ANIM_TICK_MS                  60
+
+// ── Adaptive video quality ─────────────────────────────────────────
+// Tune these against your real-world WiFi using the serial fps/skip-ratio
+// log ("[Video] N fps, N% skipped") — starting points, not measured values.
+//
+// Bytes/sec observed filling the pre-fill buffer on the high tier; below
+// this, playVideo() restarts at the low tier before drawing a single frame.
+#define VIDEO_PREFILL_MIN_BPS_HIGH   40000
+// Fraction of frames discarded (not drawn) in a rolling 5s window that
+// triggers a one-time mid-stream downgrade from high to low tier.
+#define VIDEO_SKIP_RATIO_DOWNGRADE   0.40f
+// Never go more than this many consecutively-arrived frames without a
+// forced decode+draw, even when badly behind schedule — guarantees the
+// screen keeps advancing instead of freezing on one frame.
+#define VIDEO_FORCE_DRAW_MAX_SKIP    3

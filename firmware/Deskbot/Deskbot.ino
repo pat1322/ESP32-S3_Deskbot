@@ -9,9 +9,17 @@
 #include "src/video_player.h"
 #include "src/idle_screen.h"
 #include "src/state_machine.h"
+#include "src/wifi_store.h"
+#include "src/wifi_portal.h"
 
 static uint32_t lastJobPollMs    = 0;
 static uint32_t lastDeviceStateMs = 0;
+static int      wifiFailCount    = 0;
+
+// ~40s of retrying (8s timeout x 5) before offering on-device setup mode —
+// long enough to ride out a router reboot, short enough not to strand the
+// device if it's genuinely lost its network.
+static const int WIFI_FAIL_PORTAL_THRESHOLD = 5;
 
 static void handleVideoJobIfAny() {
     if (WiFi.status() != WL_CONNECTED) { WiFi.reconnect(); return; }
@@ -39,13 +47,39 @@ static void handleVideoJobIfAny() {
     lastJobPollMs = millis();
 }
 
+// Applies a WiFi network the website submitted while we were already
+// online. The currently-saved NVS credentials are left untouched until the
+// new network proves it works, so a bad password just falls back to what
+// was already working (and gets reported back to the website either way).
+static void applyPendingWifi(const String& ssid, const String& password) {
+    Serial.printf("[WiFi] Website requested switch to '%s'\n", ssid.c_str());
+    WiFi.begin(ssid.c_str(), password.c_str());
+    uint32_t t0 = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - t0 < 15000) { delay(300); yield(); }
+
+    if (WiFi.status() == WL_CONNECTED) {
+        wifiStoreSave(ssid, password);
+        Serial.println("[WiFi] Switch succeeded");
+        postWifiAck("applied");
+    } else {
+        Serial.println("[WiFi] Switch failed, reverting");
+        WiFi.disconnect();
+        connectWiFi(20000); // back to the still-saved previous network
+        postWifiAck("failed"); // sent over the restored connection
+    }
+}
+
 static void handleDeviceStatePoll() {
     if (WiFi.status() != WL_CONNECTED) return;
-    int pending;
-    String nextTask, bgTheme;
-    if (getDeviceState(pending, nextTask, bgTheme)) {
-        idleScreenSetTodoSummary(pending, nextTask);
-        idleScreenSetTheme(bgTheme);
+    DeviceState state;
+    if (!getDeviceState(state)) return;
+
+    idleScreenSetTodoSummary(state.pendingCount, state.nextTask);
+    idleScreenSetTheme(state.bgTheme);
+    setDeviceVolume(state.volume);
+
+    if (state.pendingWifiSsid.length() > 0) {
+        applyPendingWifi(state.pendingWifiSsid, state.pendingWifiPassword);
     }
 }
 
@@ -57,6 +91,15 @@ void setup() {
     transitionTo(AppState::BOOT);
 
     initVideoSubsystem();
+
+    // First-boot convenience: seed NVS from config.h so a fresh device
+    // still connects without needing the setup portal, if you'd rather
+    // just fill in config.h once. Every boot after this reads NVS only —
+    // config.h's WIFI_SSID_CFG/WIFI_PASS_CFG are never consulted again.
+    String seedSsid, seedPass;
+    if (!wifiStoreLoad(seedSsid, seedPass)) {
+        wifiStoreSave(WIFI_SSID_CFG, WIFI_PASS_CFG);
+    }
 
     transitionTo(AppState::WIFI_CONNECT);
     if (connectWiFi()) {
@@ -75,14 +118,24 @@ void loop() {
 
         case AppState::WIFI_CONNECT:
             if (connectWiFi(8000)) {
+                wifiFailCount = 0;
                 Serial.printf("[WiFi] %s\n", WiFi.localIP().toString().c_str());
                 initNTP();
                 transitionTo(AppState::IDLE);
             } else {
-                showScreen("WiFi FAILED", "Retrying...");
-                delay(2000);
+                wifiFailCount++;
+                if (wifiFailCount >= WIFI_FAIL_PORTAL_THRESHOLD) {
+                    transitionTo(AppState::WIFI_PORTAL);
+                    wifiPortalRun(); // blocking; restarts the chip on any outcome
+                } else {
+                    showScreen("WiFi FAILED", "Retrying...");
+                    delay(2000);
+                }
             }
             break;
+
+        case AppState::WIFI_PORTAL:
+            break; // entered+handled synchronously above, never observed here
 
         case AppState::IDLE: {
             idleScreenTick();

@@ -71,11 +71,15 @@ async def process_job(job_id: str) -> None:
             db.commit()
 
             mp3_path = os.path.join(out_dir, "audio.mp3")
-            mjpeg_path = os.path.join(out_dir, "video.mjpeg")
+            mjpeg_path = os.path.join(out_dir, "video_high.mjpeg")
+            mjpeg_path_low = os.path.join(out_dir, "video_low.mjpeg")
             await asyncio.gather(
                 ffmpeg_service.extract_audio(result.source_path, mp3_path),
                 ffmpeg_service.extract_mjpeg(
                     result.source_path, mjpeg_path, fps=job.fps, quality=settings.jpeg_q
+                ),
+                ffmpeg_service.extract_mjpeg(
+                    result.source_path, mjpeg_path_low, fps=job.fps_low, quality=settings.low_jpeg_q
                 ),
             )
 
@@ -84,6 +88,7 @@ async def process_job(job_id: str) -> None:
 
             job.mp3_path = mp3_path
             job.mjpeg_path = mjpeg_path
+            job.mjpeg_path_low = mjpeg_path_low
             job.status = "ready"
             job.ready_at = datetime.utcnow()
             db.commit()

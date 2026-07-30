@@ -42,7 +42,7 @@ String getJobTitle(const String& jobId) {
     String resp = http.getString();
     http.end();
 
-    StaticJsonDocument<256> doc;
+    StaticJsonDocument<384> doc;
     if (deserializeJson(doc, resp) != DeserializationError::Ok) return "";
     return doc["title"] | "";
 }
@@ -60,7 +60,7 @@ void clearCurrentJob() {
     http.end();
 }
 
-bool getDeviceState(int& pendingCount, String& nextTask, String& bgTheme) {
+bool getDeviceState(DeviceState& out) {
     WiFiClientSecure cli;
     cli.setInsecure();
     cli.setConnectionTimeout(8000);
@@ -73,10 +73,30 @@ bool getDeviceState(int& pendingCount, String& nextTask, String& bgTheme) {
     String resp = http.getString();
     http.end();
 
-    StaticJsonDocument<256> doc;
+    StaticJsonDocument<512> doc;
     if (deserializeJson(doc, resp) != DeserializationError::Ok) return false;
-    pendingCount = doc["pending_count"] | 0;
-    nextTask = doc["next_task"] | "";
-    bgTheme = doc["bg_theme"] | "drift";
+    out.pendingCount = doc["pending_count"] | 0;
+    out.nextTask = doc["next_task"] | "";
+    out.bgTheme = doc["bg_theme"] | "drift";
+    out.volume = doc["volume"] | VOLUME;
+    out.pendingWifiSsid = doc["pending_wifi_ssid"] | "";
+    out.pendingWifiPassword = doc["pending_wifi_password"] | "";
     return true;
+}
+
+void postWifiAck(const String& status) {
+    WiFiClientSecure cli;
+    cli.setInsecure();
+    cli.setConnectionTimeout(8000);
+    HTTPClient http;
+    http.begin(cli, serverBase() + "/device/wifi/ack");
+    http.addHeader("X-Api-Key", DESKBOT_API_KEY);
+    http.addHeader("Content-Type", "application/json");
+    http.setTimeout(8000);
+    StaticJsonDocument<64> doc;
+    doc["status"] = status;
+    String body;
+    serializeJson(doc, body);
+    http.POST(body);
+    http.end();
 }

@@ -2,6 +2,8 @@
 
 #include <Arduino.h>
 
+#include "pins.h"
+
 // Returns the ready job's id, or "" if none is ready / on error.
 String checkCurrentJob();
 
@@ -12,7 +14,23 @@ String getJobTitle(const String& jobId);
 // from ready -> playing server-side) so it won't be reported again.
 void clearCurrentJob();
 
-// Fetches the combined device state (to-do summary + chosen background
-// theme). Returns false on network/parse failure, leaving the out
-// params untouched.
-bool getDeviceState(int& pendingCount, String& nextTask, String& bgTheme);
+// Combined device state polled from /device/state: to-do summary, chosen
+// background theme, volume, and (while a website-initiated network switch
+// is pending) the new WiFi credentials to try.
+struct DeviceState {
+    int    pendingCount = 0;
+    String nextTask;
+    String bgTheme = "drift";
+    float  volume = VOLUME; // pins.h boot default until the first successful poll
+    String pendingWifiSsid;
+    String pendingWifiPassword;
+};
+
+// Fetches the combined device state. Returns false on network/parse
+// failure, leaving `out` untouched.
+bool getDeviceState(DeviceState& out);
+
+// Acks a website-initiated WiFi switch attempt so the server can clear the
+// pending request and reflect the outcome to the website. status is
+// "applied" or "failed".
+void postWifiAck(const String& status);

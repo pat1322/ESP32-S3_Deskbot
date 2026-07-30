@@ -492,6 +492,106 @@ main.col-main { min-width: 0; display: flex; flex-direction: column; gap: 22px; 
   background: rgba(255, 157, 66, 0.08);
 }
 
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px 14px;
+}
+
+.volume-control input[type="range"] {
+  flex: 1;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line);
+  outline: none;
+}
+.volume-control input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--amber);
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(255, 157, 66, 0.5);
+}
+.volume-control input[type="range"]::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border: none;
+  border-radius: 50%;
+  background: var(--amber);
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(255, 157, 66, 0.5);
+}
+
+.volume-control span {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  min-width: 34px;
+  text-align: right;
+}
+
+/* ── Network panel ─────────────────────────────────────────────── */
+
+.wifi-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.wifi-row input {
+  flex: 1 1 160px;
+  background: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 10px 12px;
+  font-size: 14px;
+  min-width: 0;
+}
+.wifi-row button {
+  background: var(--cyan);
+  border: none;
+  border-radius: var(--radius);
+  color: #06211f;
+  font-weight: 600;
+  padding: 0 18px;
+  font-size: 14px;
+}
+
+.wifi-hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 10px 0 0;
+  line-height: 1.5;
+}
+
+.wifi-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 9px 12px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.wifi-status[data-status="applying"] { border-color: var(--cyan); color: var(--cyan); }
+.wifi-status[data-status="applied"] { border-color: var(--amber); color: var(--amber); }
+.wifi-status[data-status="failed"] { border-color: var(--danger); color: var(--danger); }
+.wifi-status a {
+  color: inherit;
+  text-decoration: none;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.7;
+}
+.wifi-status a:hover { opacity: 1; }
+
 .todo-panel { padding: 4px 16px 16px; }
 
 .todo-add {
@@ -605,6 +705,7 @@ body { overflow-x: hidden; }
      never letting an input's font drop below 16px. */
   .search-row input,
   .todo-add input,
+  .wifi-row input,
   .login-card input {
     font-size: 16px;
   }
@@ -613,6 +714,7 @@ body { overflow-x: hidden; }
   .mini-btn,
   .theme-picker button,
   .todo-add button,
+  .wifi-row button,
   .login-card button {
     min-height: 40px;
   }

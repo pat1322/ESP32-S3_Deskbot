@@ -72,6 +72,8 @@ async function loadSettings() {
     const res = await api('/api/settings');
     const data = await res.json();
     applyTheme(data.bg_theme);
+    applyVolume(data.volume);
+    applyWifiStatus(data.wifi_apply_status, data.pending_wifi_ssid);
   } catch {
     // fall back to whatever the screen already shows
   }
@@ -98,6 +100,96 @@ $('#theme-picker').addEventListener('click', async (e) => {
   } catch {
     loadSettings(); // revert to server truth on failure
   }
+});
+
+// ── Volume ───────────────────────────────────────────────────────────
+
+function applyVolume(volume) {
+  const pct = Math.round(volume * 100);
+  $('#volume-slider').value = pct;
+  $('#volume-value').textContent = `${pct}%`;
+}
+
+let volumeSaveTimer = null;
+$('#volume-slider').addEventListener('input', (e) => {
+  const pct = Number(e.target.value);
+  $('#volume-value').textContent = `${pct}%`;
+  clearTimeout(volumeSaveTimer);
+  volumeSaveTimer = setTimeout(async () => {
+    try {
+      await api('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ volume: pct / 100 }),
+      });
+    } catch {
+      loadSettings(); // revert to server truth on failure
+    }
+  }, 300);
+});
+
+// ── Network (WiFi) ──────────────────────────────────────────────────
+
+// The server only echoes pending_wifi_ssid while status is "applying" — it
+// clears it the moment the device acks. Remember what we submitted so the
+// applied/failed message can still name the network.
+let lastSubmittedSsid = '';
+let wifiPollTimer = null;
+
+const WIFI_STATUS_TEXT = {
+  applying: (ssid) => `Applying "${ssid}"…`,
+  applied: (ssid) => `Connected to "${ssid}"`,
+  failed: (ssid) => `Failed to join "${ssid}" — reverted to the previous network`,
+};
+
+function applyWifiStatus(status, pendingSsid) {
+  const el = $('#wifi-status');
+  const ssid = pendingSsid || lastSubmittedSsid;
+  if (!status || status === 'none' || !WIFI_STATUS_TEXT[status]) {
+    el.classList.add('hidden');
+    clearInterval(wifiPollTimer);
+    wifiPollTimer = null;
+    return;
+  }
+  el.dataset.status = status;
+  el.classList.remove('hidden');
+  $('#wifi-status-text').textContent = WIFI_STATUS_TEXT[status](ssid);
+
+  if (status === 'applying' && !wifiPollTimer) {
+    wifiPollTimer = setInterval(loadSettings, 3000);
+  } else if (status !== 'applying' && wifiPollTimer) {
+    clearInterval(wifiPollTimer);
+    wifiPollTimer = null;
+  }
+}
+
+$('#wifi-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const ssid = $('#wifi-ssid').value.trim();
+  const password = $('#wifi-password').value;
+  if (!ssid) return;
+  lastSubmittedSsid = ssid;
+  try {
+    await api('/api/settings/wifi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ssid, password }),
+    });
+    $('#wifi-password').value = '';
+    loadSettings();
+  } catch {
+    // leave the form as-is so the user can retry
+  }
+});
+
+$('#wifi-status-dismiss').addEventListener('click', async (e) => {
+  e.preventDefault();
+  try {
+    await api('/api/settings/wifi/dismiss', { method: 'POST' });
+  } catch {
+    // ignore — next loadSettings() will resync
+  }
+  loadSettings();
 });
 
 function updateDeskStatus(todos) {

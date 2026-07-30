@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Integer, String
+from sqlalchemy import Boolean, DateTime, Float, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base
@@ -25,8 +25,10 @@ class Job(Base):
 
     source_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     mjpeg_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    mjpeg_path_low: Mapped[str | None] = mapped_column(String(512), nullable=True)
     mp3_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     fps: Mapped[int] = mapped_column(Integer, default=15)
+    fps_low: Mapped[int] = mapped_column(Integer, default=8)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -41,6 +43,13 @@ class Settings(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     bg_theme: Mapped[str] = mapped_column(String(16), default="drift")
+    volume: Mapped[float] = mapped_column(Float, default=0.4)
+
+    # Website-driven WiFi switch: set by POST /api/settings/wifi, cleared by
+    # the device's POST /device/wifi/ack once it's tried the new network.
+    pending_wifi_ssid: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    pending_wifi_password: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    wifi_apply_status: Mapped[str] = mapped_column(String(16), default="none")  # none|applying|applied|failed
 
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

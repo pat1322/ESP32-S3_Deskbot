@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     # Web auth — if unset, the login gate is disabled (dev convenience)
     web_password: str | None = None
     session_secret: str = "dev-insecure-secret-change-me"
+    # Marks the session cookie Secure (HTTPS-only). Leave True in production
+    # (Railway serves HTTPS); set False only for local plain-http dev.
+    session_cookie_secure: bool = True
 
     # Database
     database_url: str = "sqlite:///./deskbot.db"
@@ -24,6 +27,12 @@ class Settings(BaseSettings):
     # falling behind and dropping frames.
     default_fps: int = 10
     jpeg_q: int = 10
+    # "Low" tier: a second, cheaper-to-stream MJPEG encoded alongside the
+    # default ("high") one for every job, so the device can fall back to it
+    # on a weak/slow connection without re-encoding on demand. Same 320x240
+    # frame size as the high tier — only fps and JPEG compression drop.
+    low_fps: int = 8
+    low_jpeg_q: int = 22
     max_job_duration_s: int = 20 * 60
     ready_grace_period_s: int = 15 * 60
     error_grace_period_s: int = 5 * 60

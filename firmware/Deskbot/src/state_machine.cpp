@@ -15,6 +15,9 @@ void transitionTo(AppState newState) {
         case AppState::WIFI_CONNECT:
             showScreen("Connecting...", "Joining WiFi");
             break;
+        case AppState::WIFI_PORTAL:
+            showScreen("Setup Mode", "Join 'Deskbot-Setup' WiFi");
+            break;
         case AppState::IDLE:
             idleScreenEnter();
             break;

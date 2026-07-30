@@ -1,10 +1,13 @@
 #include "network.h"
 
 #include <WiFi.h>
-#include "../config.h"
+#include "wifi_store.h"
 
 bool connectWiFi(uint32_t timeoutMs) {
-    WiFi.begin(WIFI_SSID_CFG, WIFI_PASS_CFG);
+    String ssid, pass;
+    if (!wifiStoreLoad(ssid, pass)) return false; // nothing saved yet — caller should offer the setup portal
+
+    WiFi.begin(ssid.c_str(), pass.c_str());
     uint32_t start = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - start < timeoutMs) {
         delay(300);
