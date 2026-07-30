@@ -88,6 +88,13 @@ void wifiPortalRun() {
     WiFi.softAP(AP_SSID);
     Serial.printf("[Portal] AP '%s' up at %s\n", AP_SSID, WiFi.softAPIP().toString().c_str());
 
+    // DNSServer is AsyncUDP-backed on current ESP32 Arduino cores. Calling
+    // its start() immediately after WiFi.softAP() can race the AP's netif
+    // registration with the LwIP core and crash with
+    // "assert failed: udp_new_ip_type ... Required to lock TCPIP core
+    // functionality!" — this settle delay is the standard workaround.
+    delay(500);
+
     DNSServer dnsServer;
     dnsServer.start(DNS_PORT, "*", apIP); // answers every query with our own IP, triggering the OS captive-portal popup
 
