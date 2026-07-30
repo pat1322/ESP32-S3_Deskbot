@@ -1,3 +1,5 @@
+# Build context is the repo root (see /railway.json's dockerfilePath),
+# so COPY paths below are prefixed with server/.
 FROM python:3.11-slim
 
 RUN apt-get update \
@@ -6,10 +8,10 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY server/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app ./app
+COPY server/app ./app
 
 ENV PORT=8000
 EXPOSE 8000
