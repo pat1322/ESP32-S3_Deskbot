@@ -1,9 +1,19 @@
 #include "video_player.h"
 
+#include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <JPEGDEC.h>
 
+#include "pins.h"
+#include "display.h"
+
+// TFT_eSPI (pulled in by display.h, above) must be included before
+// AudioTools/the audio-driver headers below: the audio-driver library
+// defines its own `GPIO` class, which becomes ambiguous with ESP-IDF's
+// global `GPIO` register struct if gpio_ll.h gets parsed (via TFT_eSPI)
+// after that class is already in scope. Matches VideoTester.ino's
+// include order — don't reorder these.
 #include "AudioTools.h"
 #include "AudioTools/AudioLibs/I2SCodecStream.h"
 #if __has_include("AudioTools/AudioCodecs/CodecMP3Helix.h")
@@ -14,8 +24,6 @@
   #error "CodecMP3Helix not found"
 #endif
 
-#include "pins.h"
-#include "display.h"
 #include "../config.h"
 
 static JPEGDEC       jpeg;
