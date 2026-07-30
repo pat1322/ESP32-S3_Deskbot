@@ -1,0 +1,17 @@
+# Firmware secrets
+firmware/Deskbot/config.h
+VideoTester/voice_config.h
+
+# Backend
+server/.env
+server/app/media/
+server/*.db
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/

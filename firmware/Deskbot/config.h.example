@@ -1,0 +1,24 @@
+/*
+ * Deskbot - Config Template
+ *
+ * SETUP:
+ *   1. Copy this file -> config.h (same folder)
+ *   2. Fill in all values below
+ *   3. config.h is in .gitignore - NEVER committed
+ */
+
+#pragma once
+
+// WiFi
+#define WIFI_SSID_CFG   "YOUR_WIFI_SSID"
+#define WIFI_PASS_CFG   "YOUR_WIFI_PASSWORD"
+
+// Deskbot server (Railway) - no trailing slash
+#define DESKBOT_SERVER_URL "https://your-deskbot.up.railway.app"
+#define DESKBOT_API_KEY    "same value as DESKBOT_API_KEY on the server"
+
+// NTP / timezone — offsets in seconds from UTC.
+// Example: US Eastern (EST/EDT) -> GMT_OFFSET_SEC = -5*3600, DST_OFFSET_SEC = 3600
+// Example: Philippines (PST, no DST) -> GMT_OFFSET_SEC = 8*3600, DST_OFFSET_SEC = 0
+#define GMT_OFFSET_SEC   0
+#define DST_OFFSET_SEC   0
