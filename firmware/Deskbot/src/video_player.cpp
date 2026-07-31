@@ -183,87 +183,30 @@ static void audioTaskFn(void*) {
             }
         }
 
-        // From here on, audio content should track real elapsed time 1:1.
-        // audioStartMs is captured locally rather than shared with the
-        // video loop's playStartMs (in playVideo(), a different function)
-        // on purpose — this only needs to know when ITS OWN decoding
-        // began, so there's no cross-task race to worry about.
-        uint32_t audioStartMs = millis();
-        uint32_t contentBytes = 0;
-
-        // Set while a resync discard is in progress. While true, chunks
-        // are dropped whole rather than written to the decoder. The bug
-        // this guards against: resuming a write on the very next chunk
-        // after a discard almost never lands on an MP3 frame boundary
-        // (frames are ~144-150 bytes, chunks are read in up-to-2048-byte
-        // increments off the socket) — feeding the Helix decoder a
-        // frame-unaligned bitstream desyncs its parser, which is what
-        // produced the cracking/wrong-pitch audio this fixes. Once caught
-        // up, don't resume writing blindly — scan for the next real frame
-        // sync word first (see below) so the decoder only ever starts on
-        // a valid frame boundary.
-        bool audioResyncing = false;
-
-        // Mirrors the video loop's own pause handling (playVideo()): stop
-        // touching the audio socket entirely while paused (unread bytes
-        // just backpressure the server's write) and shift audioStartMs
-        // forward by the pause duration on resume, so the resync check
-        // above doesn't mistake the pause gap for having fallen behind.
-        // No explicit mute needed -- audio goes silent on its own within
-        // the I2S buffer's own drain time once no new PCM is being written.
-        uint32_t audioPauseStartMs = 0;
-        bool     audioWasPaused    = false;
-
+        // No catch-up/resync logic here on purpose — an earlier attempt at
+        // one (discarding MP3 bytes to skip ahead when audio fell behind)
+        // reliably desynced the Helix decoder's bitstream parser and made
+        // audio sound cracked/wrong-pitched, which was worse than the
+        // lip-sync drift it was meant to fix. Just decode everything that
+        // arrives, in order — the same approach this had before that
+        // feature was added.
         uint8_t buf[2048];
         while (g_playing) {
             if (g_videoPaused) {
-                if (!audioWasPaused) { audioWasPaused = true; audioPauseStartMs = millis(); }
+                // Mirrors the video loop's own pause handling: stop
+                // touching the audio socket entirely while paused (unread
+                // bytes just backpressure the server's write). No explicit
+                // mute needed -- audio goes silent on its own within the
+                // I2S buffer's own drain time once no new PCM is written.
                 vTaskDelay(1);
                 continue;
-            }
-            if (audioWasPaused) {
-                audioStartMs += millis() - audioPauseStartMs;
-                audioWasPaused = false;
             }
 
             int avail = s->available();
             if (avail > 0) {
                 int got = s->readBytes(buf, min(avail, (int)sizeof(buf)));
                 if (got > 0) {
-                    uint32_t elapsedMs = millis() - audioStartMs;
-                    uint32_t contentMs = contentBytes / AUDIO_BYTES_PER_MS;
-                    if (elapsedMs > contentMs + AUDIO_RESYNC_THRESHOLD_MS) {
-                        // Fallen too far behind real time — discard this
-                        // chunk instead of decoding it, to skip ahead
-                        // rather than let the gap grow into audible
-                        // lip-sync drift for the rest of the video.
-                        if (!audioResyncing) {
-                            Serial.printf("[Audio] Resyncing, %u ms behind\n", elapsedMs - contentMs);
-                        }
-                        audioResyncing = true;
-                    } else if (audioResyncing) {
-                        // Just caught up. Find the next MP3 frame sync
-                        // word (0xFF followed by a byte with its top 3
-                        // bits set) in this chunk and only start writing
-                        // from there, discarding any leading partial-frame
-                        // bytes before it — never resume mid-frame.
-                        int syncOffset = -1;
-                        for (int i = 0; i < got - 1; i++) {
-                            if (buf[i] == 0xFF && (buf[i + 1] & 0xE0) == 0xE0) {
-                                syncOffset = i;
-                                break;
-                            }
-                        }
-                        if (syncOffset >= 0) {
-                            g_audioDecoded.write(buf + syncOffset, got - syncOffset);
-                            audioResyncing = false;
-                        }
-                        // else: no sync word in this chunk either, keep
-                        // discarding and try again on the next one.
-                    } else {
-                        g_audioDecoded.write(buf, got);
-                    }
-                    contentBytes += got;
+                    g_audioDecoded.write(buf, got);
                 }
             } else {
                 if (!http.connected() && s->available() == 0) break;

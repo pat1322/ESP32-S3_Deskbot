@@ -230,29 +230,25 @@ exist specifically to prevent two audio tasks ever running concurrently
 across a tier-downgrade restart — both would otherwise drive the same
 static `i2sCodec`/`decoded` objects.
 
-**Audio resync.** Video and audio are two independent HTTP streams with
-no shared clock. The decode/draw loop above actively paces itself against
-wall-clock time and skips frames to catch up — `audioTaskFn` didn't have
-an equivalent until this was added, so a starved audio stream (e.g. the
-video stream eating most of the WiFi throughput at a higher fps) would
-drift later and later with nothing to bring it back for the rest of the
-video — the video stays roughly on schedule while the audio falls behind
-it, and it reads as lip-sync drift. `audioTaskFn` now tracks its own
-elapsed real time since decoding started against how much audio content
-(in represented playback time) it's actually written to the decoder,
-converting bytes written directly to milliseconds via a fixed constant
-(`AUDIO_BYTES_PER_MS` in `pins.h`) — safe only because `services/
-ffmpeg_service.py`'s `extract_audio()` always encodes a fixed 96kbps mono
-CBR MP3; if that ever becomes variable-bitrate or configurable, this
-conversion breaks and needs MP3 frame-header parsing instead. If it falls
-more than `AUDIO_RESYNC_THRESHOLD_MS` behind, it discards incoming bytes
-(skips ahead) instead of decoding them until it catches back up, mirroring
-the video loop's own catch-up strategy. Deliberately not wired through
-`remoteLog()` — that function's `queuedLines` buffer has no mutex, and
-`audioTaskFn` runs on a different core than the main loop, which also
-calls `remoteLog()` during playback (the periodic cancel-check and 5s fps
-report); `Serial.printf()` is used instead, matching how this task
-already logged before this addition.
+**No audio resync.** Video and audio are two independent HTTP streams
+with no shared clock. The decode/draw loop above actively paces itself
+against wall-clock time and skips frames to catch up if it falls behind;
+`audioTaskFn` deliberately does **not** have an equivalent — it just
+decodes whatever MP3 bytes arrive off the socket, in order, with no
+skip-ahead logic. A catch-up mechanism was tried once (discarding
+undecoded MP3 bytes when audio fell behind, to skip ahead the same way
+the video loop drops frames) but was removed: resuming decode on the very
+next chunk after a discard almost never lands on an MP3 frame boundary
+(frames are ~144-150 bytes, chunks are read in up-to-2048-byte increments
+off the socket), and feeding the Helix decoder a frame-unaligned
+bitstream desyncs its parser — it has to hunt for a new sync word, can
+emit garbage samples meanwhile, and can even briefly lock onto a spurious
+sync pattern implying the wrong sample rate. In practice this made audio
+sound cracked/distorted/wrong-pitched, which was worse than the lip-sync
+drift it was meant to fix. If a starved audio stream (e.g. the video
+stream eating most of the WiFi throughput at a higher fps) drifts behind
+the video for the rest of a video, that's the accepted tradeoff over
+audibly corrupting the stream to correct for it.
 
 ## Screen orientation
 

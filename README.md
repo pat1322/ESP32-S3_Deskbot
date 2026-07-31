@@ -53,12 +53,13 @@ frame. Tune the thresholds against your own network using the serial log
   `VIDEO_SKIP_RATIO_DOWNGRADE`, `VIDEO_FORCE_DRAW_MAX_SKIP` in
   `firmware/Deskbot/src/pins.h`.
 
-Audio plays over a separate stream with no shared clock, so it gets the
-same kind of catch-up ability: if it falls more than
-`AUDIO_RESYNC_THRESHOLD_MS` behind real time (the video stream eating most
-of the WiFi throughput is the usual cause), it skips ahead in the audio
-instead of letting the gap grow into lip-sync drift for the rest of the
-video — watch for `[Audio] Resyncing, N ms behind` in the serial log.
+Audio plays over a separate stream with no shared clock and, unlike
+video, has no catch-up mechanism — it just decodes whatever arrives, in
+order. A skip-ahead mechanism was tried (discarding audio bytes to catch
+up when it fell behind, mirroring the video loop) but made audio sound
+worse — cracked/distorted — than the lip-sync drift it was meant to fix,
+so it was removed. If the video stream eats most of the WiFi throughput,
+audio can drift behind for the rest of that video rather than resync.
 
 ### Playback controls
 
