@@ -2,6 +2,13 @@
 # so COPY paths below are prefixed with server/.
 FROM python:3.11-slim
 
+# yt-dlp needs a JS runtime to solve YouTube's "n challenge" (anti-bot
+# signature); without it, only image/storyboard formats are extracted and
+# downloads fail with "Requested format is not available". Deno is copied
+# in via yt-dlp's own recommended multi-stage pattern (see
+# https://github.com/yt-dlp/yt-dlp/wiki/EJS) rather than a curl|sh installer.
+COPY --from=denoland/deno:bin-2.9.4 /deno /usr/local/bin/deno
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*

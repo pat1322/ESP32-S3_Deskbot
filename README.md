@@ -139,6 +139,12 @@ scratch space that gets cleaned up automatically after each job is consumed.
   confirm you're not a bot"*, that's YouTube bot-checking Railway's
   datacenter IP rather than an app bug — set `YTDLP_COOKIES` (see
   `.env.example`) to authenticate `yt-dlp` with a real browser session.
+- If downloads fail with *"Requested format is not available"*, that's
+  YouTube's "n challenge" anti-bot signature failing to solve — `yt-dlp`
+  needs both `yt-dlp[default]` (installs the `yt-dlp-ejs` solver scripts,
+  already in `requirements.txt`) and a JS runtime on `PATH` (the Dockerfile
+  copies in a Deno binary for this). Local dev without Deno installed will
+  hit the same error; install Deno or run search-only features.
 - See [SECURITY.md](SECURITY.md) for the full list of accepted security
   trade-offs (shared-secret auth, the open WiFi setup access point, the
   `yt-dlp` ToS caveat, etc.) — this is a personal single-owner gadget, not a
