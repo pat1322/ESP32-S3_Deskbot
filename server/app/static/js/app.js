@@ -50,6 +50,20 @@ async function api(path, opts = {}) {
   return res;
 }
 
+// ── Tabs ─────────────────────────────────────────────────────────────
+
+$('#tab-nav').addEventListener('click', (e) => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+  const tab = btn.dataset.tab;
+  for (const b of document.querySelectorAll('.tab-btn')) {
+    b.classList.toggle('active', b === btn);
+  }
+  for (const panel of document.querySelectorAll('.tab-panel')) {
+    panel.classList.toggle('hidden', panel.dataset.tabPanel !== tab);
+  }
+});
+
 // ── Desk unit clock ──────────────────────────────────────────────────
 
 function tickClock() {

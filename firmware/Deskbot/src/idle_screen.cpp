@@ -33,19 +33,6 @@ static Orb orbs[3] = {
     { 150, 30, 26, 10, 0.35f, 4.4f, 6, COLOR_AMBER },
 };
 
-// ── Pulse theme state ───────────────────────────────────────────────
-struct Ring {
-    float phase; // 0..1, wraps
-    float speed; // phase units per animation tick
-    uint16_t color;
-};
-
-static Ring rings[3] = {
-    { 0.0f,  0.012f, COLOR_AMBER },
-    { 0.33f, 0.012f, COLOR_CYAN  },
-    { 0.66f, 0.012f, COLOR_AMBER },
-};
-
 // ── Starfield theme state ───────────────────────────────────────────
 struct Star {
     float x, y, speed;
@@ -93,17 +80,6 @@ static void renderDrift(float t) {
     for (auto& o : orbs) drawOrb(o, t);
 }
 
-static void renderPulse() {
-    const int cx = BAND_W / 2, cy = BAND_H / 2, maxR = BAND_H / 2 - 1;
-    for (auto& ring : rings) {
-        ring.phase += ring.speed;
-        if (ring.phase > 1.0f) ring.phase -= 1.0f;
-        int radius = (int)(ring.phase * maxR);
-        uint8_t alpha = (uint8_t)(200 * (1.0f - ring.phase));
-        if (radius >= 1) band.drawCircle(cx, cy, radius, blend565(ring.color, TFT_BLACK, alpha));
-    }
-}
-
 static void renderStarfield() {
     for (auto& s : stars) {
         s.x += s.speed;
@@ -119,7 +95,6 @@ static void renderAmbientBand() {
     float t = millis() / 1000.0f;
     switch (currentTheme) {
         case BgTheme::DRIFT:     renderDrift(t);   break;
-        case BgTheme::PULSE:     renderPulse();    break;
         case BgTheme::STARFIELD: renderStarfield(); break;
         default: break;
     }
@@ -240,8 +215,7 @@ void idleScreenSetTodoSummary(int pendingCount, const String& nextTask) {
 
 void idleScreenSetTheme(const String& themeName) {
     BgTheme next = BgTheme::DRIFT;
-    if      (themeName == "pulse")     next = BgTheme::PULSE;
-    else if (themeName == "starfield") next = BgTheme::STARFIELD;
+    if      (themeName == "starfield") next = BgTheme::STARFIELD;
     else if (themeName == "minimal")   next = BgTheme::MINIMAL;
 
     if (next == currentTheme) return;

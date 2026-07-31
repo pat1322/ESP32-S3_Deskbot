@@ -10,7 +10,7 @@ from .db import Base
 #                                                    \-> error
 JOB_ACTIVE_STATUSES = ("queued", "downloading", "encoding", "ready", "playing")
 
-BG_THEMES = ("drift", "pulse", "starfield", "minimal")
+BG_THEMES = ("drift", "starfield", "minimal")
 SETTINGS_ID = 1
 
 

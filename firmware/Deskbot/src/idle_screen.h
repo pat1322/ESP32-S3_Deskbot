@@ -4,7 +4,7 @@
 
 // Mirrors the website's theme picker (server/app/static/js/app.js) —
 // keep the string values in sync with models.BG_THEMES on the server.
-enum class BgTheme { DRIFT, PULSE, STARFIELD, MINIMAL };
+enum class BgTheme { DRIFT, STARFIELD, MINIMAL };
 
 // Draws static chrome and resets cached state. Call whenever the device
 // (re)enters idle mode (boot, and after returning from video playback).
@@ -19,6 +19,6 @@ void idleScreenTick();
 // state and redraws next time idleScreenEnter()/Tick() runs while idle).
 void idleScreenSetTodoSummary(int pendingCount, const String& nextTask);
 
-// Parses one of "drift"/"pulse"/"starfield"/"minimal" (unknown values
-// fall back to DRIFT) and switches the ambient background style.
+// Parses one of "drift"/"starfield"/"minimal" (unknown values fall back
+// to DRIFT) and switches the ambient background style.
 void idleScreenSetTheme(const String& themeName);

@@ -27,112 +27,124 @@
     <a href="#" class="logout-link" id="logout-link">Log out</a>
   </header>
 
-  <main class="col-main">
-    <section class="panel">
-      <h2>Search YouTube</h2>
-      <form class="search-row" id="search-form">
-        <input type="text" id="search-input" placeholder="Search YouTube…" autocomplete="off">
-        <button type="submit">Search</button>
-      </form>
-    </section>
+  <nav class="tab-nav" id="tab-nav">
+    <button type="button" class="tab-btn active" data-tab="home">Home</button>
+    <button type="button" class="tab-btn" data-tab="settings">Settings</button>
+  </nav>
 
-    <section class="panel">
-      <h2>Now playing</h2>
-      <div class="now-playing-row">
-        <span class="status-pill" id="now-status" data-status="idle">Idle</span>
-        <span class="now-playing-title muted" id="now-title">Nothing queued</span>
-        <div class="now-playing-actions" id="now-actions"></div>
-      </div>
-    </section>
+  <div class="layout">
+    <main class="col-main">
+      <div class="tab-panel" id="tab-home" data-tab-panel="home">
+        <section class="panel">
+          <h2>Search YouTube</h2>
+          <form class="search-row" id="search-form">
+            <input type="text" id="search-input" placeholder="Search YouTube…" autocomplete="off">
+            <button type="submit">Search</button>
+          </form>
+        </section>
 
-    <section class="panel">
-      <h2>Network</h2>
-      <div class="wifi-status hidden" id="wifi-status">
-        <span id="wifi-status-text"></span>
-        <a href="#" id="wifi-status-dismiss">&times;</a>
-      </div>
-      <form class="wifi-row" id="wifi-form">
-        <input type="text" id="wifi-ssid" placeholder="Network name (SSID)" autocomplete="off" required>
-        <input type="password" id="wifi-password" placeholder="Password" autocomplete="off">
-        <button type="submit">Apply</button>
-      </form>
-      <p class="wifi-hint">Pushes new WiFi credentials to your desk unit on its next check-in
-        (~45s). It falls back to its current network automatically if the new one fails.
-        First-time setup (or a device that's never connected) instead uses its own
-        "Deskbot-Setup" WiFi network — see the README.</p>
-    </section>
+        <section class="panel">
+          <h2>Now playing</h2>
+          <div class="now-playing-row">
+            <span class="status-pill" id="now-status" data-status="idle">Idle</span>
+            <span class="now-playing-title muted" id="now-title">Nothing queued</span>
+            <div class="now-playing-actions" id="now-actions"></div>
+          </div>
+        </section>
 
-    <section class="panel">
-      <div class="device-log-header">
-        <h2>Device Log</h2>
-        <a href="#" id="clear-log">Clear</a>
-      </div>
-      <pre class="device-log" id="device-log">Waiting for the device to check in&hellip;</pre>
-      <p class="wifi-hint">Live log pushed from the desk unit itself — an alternative to the
-        Arduino serial monitor. Updates every few seconds while this page is open.</p>
-    </section>
+        <section class="panel">
+          <div class="todo-label-row">
+            <h2>To-do</h2>
+            <a href="#" id="clear-done">Clear done</a>
+          </div>
+          <div class="todo-panel">
+            <form class="todo-add" id="todo-form">
+              <input type="text" id="todo-input" placeholder="Add a task…" autocomplete="off">
+              <button type="submit">+</button>
+            </form>
+            <ul id="todo-list"></ul>
+          </div>
+        </section>
 
-    <section class="panel">
-      <h2>Results</h2>
-      <div id="results">
-        <div class="empty-note">Search for something to play on your desk unit.</div>
+        <section class="panel">
+          <h2>Results</h2>
+          <div id="results">
+            <div class="empty-note">Search for something to play on your desk unit.</div>
+          </div>
+        </section>
       </div>
-    </section>
-  </main>
 
-  <aside class="desk-unit">
-    <div class="screen" id="screen" data-theme="drift">
-      <div class="fx-drift">
-        <div class="orb o1"></div>
-        <div class="orb o2"></div>
-        <div class="orb o3"></div>
-      </div>
-      <div class="fx-pulse">
-        <div class="ring r1"></div>
-        <div class="ring r2"></div>
-        <div class="ring r3"></div>
-      </div>
-      <div class="fx-starfield">
-        <div class="star s1"></div>
-        <div class="star s2"></div>
-        <div class="star s3"></div>
-        <div class="star s4"></div>
-        <div class="star s5"></div>
-        <div class="star s6"></div>
-      </div>
-      <div class="screen-content">
-        <div class="clock" id="clock">--:--:--</div>
-        <div class="date" id="date">-</div>
-        <div class="desk-status" id="desk-status">no tasks pending</div>
-      </div>
-    </div>
+      <div class="tab-panel hidden" id="tab-settings" data-tab-panel="settings">
+        <section class="panel">
+          <h2>Network</h2>
+          <div class="wifi-status hidden" id="wifi-status">
+            <span id="wifi-status-text"></span>
+            <a href="#" id="wifi-status-dismiss">&times;</a>
+          </div>
+          <form class="wifi-row" id="wifi-form">
+            <input type="text" id="wifi-ssid" placeholder="Network name (SSID)" autocomplete="off" required>
+            <input type="password" id="wifi-password" placeholder="Password" autocomplete="off">
+            <button type="submit">Apply</button>
+          </form>
+          <p class="wifi-hint">Pushes new WiFi credentials to your desk unit on its next check-in
+            (~45s). It falls back to its current network automatically if the new one fails.
+            First-time setup (or a device that's never connected) instead uses its own
+            "Deskbot-Setup" WiFi network — see the README.</p>
+        </section>
 
-    <div class="desk-label">Background</div>
-    <div class="theme-picker" id="theme-picker">
-      <button type="button" data-theme="drift">Drift</button>
-      <button type="button" data-theme="pulse">Pulse</button>
-      <button type="button" data-theme="starfield">Stars</button>
-      <button type="button" data-theme="minimal">Minimal</button>
-    </div>
+        <section class="panel">
+          <h2>Background &amp; Volume</h2>
+          <div class="desk-label">Background theme</div>
+          <div class="theme-picker" id="theme-picker">
+            <button type="button" data-theme="drift">Drift</button>
+            <button type="button" data-theme="starfield">Stars</button>
+            <button type="button" data-theme="minimal">Minimal</button>
+          </div>
+          <div class="desk-label">Volume</div>
+          <div class="volume-control">
+            <input type="range" id="volume-slider" min="0" max="100" value="40">
+            <span id="volume-value">40%</span>
+          </div>
+        </section>
 
-    <div class="desk-label">Volume</div>
-    <div class="volume-control">
-      <input type="range" id="volume-slider" min="0" max="100" value="40">
-      <span id="volume-value">40%</span>
-    </div>
+        <section class="panel">
+          <div class="device-log-header">
+            <h2>Device Log</h2>
+            <a href="#" id="clear-log">Clear</a>
+          </div>
+          <pre class="device-log" id="device-log">Waiting for the device to check in&hellip;</pre>
+          <p class="wifi-hint">Live log pushed from the desk unit itself — an alternative to the
+            Arduino serial monitor. Updates every few seconds while this page is open.</p>
+        </section>
+      </div>
+    </main>
 
-    <div class="desk-label todo-label-row">
-      <span>To-do</span>
-      <a href="#" id="clear-done">Clear done</a>
-    </div>
-    <div class="todo-panel">
-      <form class="todo-add" id="todo-form">
-        <input type="text" id="todo-input" placeholder="Add a task…" autocomplete="off">
-        <button type="submit">+</button>
-      </form>
-      <ul id="todo-list"></ul>
-    </div>
-  </aside>
+    <aside class="desk-unit">
+      <div class="desk-unit-label">Live preview</div>
+      <div class="screen" id="screen" data-theme="drift">
+        <div class="screen-band">
+          <div class="fx-drift">
+            <div class="orb o1"></div>
+            <div class="orb o2"></div>
+            <div class="orb o3"></div>
+          </div>
+          <div class="fx-starfield">
+            <div class="star s1"></div>
+            <div class="star s2"></div>
+            <div class="star s3"></div>
+            <div class="star s4"></div>
+            <div class="star s5"></div>
+            <div class="star s6"></div>
+          </div>
+        </div>
+        <div class="screen-content">
+          <div class="clock" id="clock">--:--:--</div>
+          <div class="date" id="date">-</div>
+          <div class="desk-status" id="desk-status">no tasks pending</div>
+        </div>
+      </div>
+    </aside>
+  </div>
 </div>
 
 <script src="/static/js/app.js"></script>
