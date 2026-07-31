@@ -790,8 +790,15 @@ function boot() {
 // first paint with no flash of unstyled content. Held for a minimum
 // SPLASH_MIN_MS *and* until checkAuth() resolves, whichever is longer, so
 // it never fades away before there's real content underneath it.
-
-const SPLASH_MIN_MS = 900;
+//
+// SPLASH_MIN_MS must cover the full CSS animation in style.css's
+// "Splash screen" section, not just feel roughly right — the last piece
+// to finish is .splash-tagline, whose animation-delay (1.1s) + duration
+// (0.5s) = 1.6s. Cutting the hold shorter than that fades the overlay
+// mid-animation. ~2s (a 400ms grace beyond that 1.6s) roughly matches the
+// firmware boot animation's own runtime, so both "boot experiences" read
+// as the same length.
+const SPLASH_MIN_MS = 2000;
 const splashStart = Date.now();
 
 function hideSplash() {

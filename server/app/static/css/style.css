@@ -1157,8 +1157,11 @@ body { overflow-x: hidden; }
   }
   .site-nav-collapse.open { display: flex; }
 
-  .tab-nav { width: 100%; }
-  .tab-btn { flex: 1; }
+  /* Was "width: 100%" + "flex: 1" from when there were only 2 tabs (Home,
+     Settings) — with 4 tabs that squeezes each button's text past its own
+     width. Stack them full-width instead now that there are more of them. */
+  .tab-nav { width: 100%; flex-direction: column; }
+  .tab-btn { width: 100%; text-align: left; padding: 10px 14px; }
   .logout-link { text-align: center; }
 
   .panel { padding: 16px; }
