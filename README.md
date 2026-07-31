@@ -53,6 +53,13 @@ frame. Tune the thresholds against your own network using the serial log
   `VIDEO_SKIP_RATIO_DOWNGRADE`, `VIDEO_FORCE_DRAW_MAX_SKIP` in
   `firmware/Deskbot/src/pins.h`.
 
+Audio plays over a separate stream with no shared clock, so it gets the
+same kind of catch-up ability: if it falls more than
+`AUDIO_RESYNC_THRESHOLD_MS` behind real time (the video stream eating most
+of the WiFi throughput is the usual cause), it skips ahead in the audio
+instead of letting the gap grow into lip-sync drift for the rest of the
+video — watch for `[Audio] Resyncing, N ms behind` in the serial log.
+
 ### Playback controls
 
 The YouTube tab's "Now playing" panel doubles as a mini player: a **Next**

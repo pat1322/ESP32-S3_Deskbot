@@ -149,12 +149,33 @@ static void audioTaskFn(void*) {
             }
         }
 
+        // From here on, audio content should track real elapsed time 1:1.
+        // audioStartMs is captured locally rather than shared with the
+        // video loop's playStartMs (in playVideo(), a different function)
+        // on purpose — this only needs to know when ITS OWN decoding
+        // began, so there's no cross-task race to worry about.
+        uint32_t audioStartMs = millis();
+        uint32_t contentBytes = 0;
+
         uint8_t buf[2048];
         while (g_playing) {
             int avail = s->available();
             if (avail > 0) {
                 int got = s->readBytes(buf, min(avail, (int)sizeof(buf)));
-                if (got > 0) g_audioDecoded.write(buf, got);
+                if (got > 0) {
+                    uint32_t elapsedMs = millis() - audioStartMs;
+                    uint32_t contentMs = contentBytes / AUDIO_BYTES_PER_MS;
+                    if (elapsedMs > contentMs + AUDIO_RESYNC_THRESHOLD_MS) {
+                        // Fallen too far behind real time — discard this
+                        // chunk instead of decoding it, to skip ahead
+                        // rather than let the gap grow into audible
+                        // lip-sync drift for the rest of the video.
+                        Serial.printf("[Audio] Resyncing, %u ms behind\n", elapsedMs - contentMs);
+                    } else {
+                        g_audioDecoded.write(buf, got);
+                    }
+                    contentBytes += got;
+                }
             } else {
                 if (!http.connected() && s->available() == 0) break;
                 vTaskDelay(1);

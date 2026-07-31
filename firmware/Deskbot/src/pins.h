@@ -58,3 +58,26 @@
 // forced decode+draw, even when badly behind schedule — guarantees the
 // screen keeps advancing instead of freezing on one frame.
 #define VIDEO_FORCE_DRAW_MAX_SKIP    3
+
+// ── Audio resync ─────────────────────────────────────────────────────
+// video_player.cpp's video decode loop above actively paces itself
+// against wall-clock time and skips frames to catch up if it falls
+// behind. audioTaskFn has no equivalent — it just plays back whatever MP3
+// bytes arrive, in order — so a starved audio stream (e.g. the video
+// stream on the same WiFi radio eating most of the throughput) drifts
+// later and later with nothing to bring it back for the rest of the
+// video. These two constants give it the same kind of catch-up ability.
+//
+// server/app/services/ffmpeg_service.py's extract_audio() always encodes
+// a fixed 96kbps mono CBR MP3, so bytes written to the decoder convert
+// directly to represented playback time — no need to parse MP3 frame
+// headers to know how far into the audio a given byte offset represents.
+#define AUDIO_BYTES_PER_MS       (96000 / 8 / 1000)
+// If audio falls this far behind real elapsed time, skip ahead (discard
+// incoming MP3 bytes without decoding them) instead of letting the gap
+// grow for the rest of the video. Deliberately more generous than
+// video's own few-hundred-ms tolerance — skipping audio is a more
+// noticeable, disruptive correction (a brief silent gap) than dropping
+// one video frame, so it shouldn't fire on ordinary jitter, only on a
+// real, sustained stall.
+#define AUDIO_RESYNC_THRESHOLD_MS 700
