@@ -11,6 +11,7 @@ from .db import Base
 JOB_ACTIVE_STATUSES = ("queued", "downloading", "encoding", "ready", "playing")
 
 BG_THEMES = ("drift", "starfield", "minimal")
+ORIENTATIONS = ("landscape", "portrait")
 SETTINGS_ID = 1
 
 
@@ -44,6 +45,7 @@ class Settings(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     bg_theme: Mapped[str] = mapped_column(String(16), default="drift")
     volume: Mapped[float] = mapped_column(Float, default=0.4)
+    orientation: Mapped[str] = mapped_column(String(16), default="landscape")  # landscape|portrait
 
     # Website-driven WiFi switch: set by POST /api/settings/wifi, cleared by
     # the device's POST /device/wifi/ack once it's tried the new network.

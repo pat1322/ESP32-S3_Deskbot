@@ -100,6 +100,7 @@ bool getDeviceState(DeviceState& out) {
     out.nextTask = doc["next_task"] | "";
     out.bgTheme = doc["bg_theme"] | "drift";
     out.volume = doc["volume"] | VOLUME;
+    out.orientation = doc["orientation"] | "landscape";
     out.quote = doc["quote"] | "";
     out.focusActive = doc["focus_active"] | false;
     out.focusSecondsRemaining = doc["focus_seconds_remaining"] | 0;

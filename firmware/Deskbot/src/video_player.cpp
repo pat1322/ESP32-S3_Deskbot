@@ -276,7 +276,7 @@ bool playVideo(const String& jobId, const String& title) {
         tft.fillScreen(TFT_BLACK);
         tft.setTextSize(2);
         tft.setTextColor(TFT_WHITE, TFT_BLACK);
-        tft.setCursor(max(0, (TFT_W - 12 * 12) / 2), TFT_H / 2 - 22);
+        tft.setCursor(max(0, (tft.width() - 12 * 12) / 2), tft.height() / 2 - 22);
         tft.print("Buffering...");
 
         int lastBarPct         = -1;
@@ -395,9 +395,19 @@ bool playVideo(const String& jobId, const String& title) {
 
                     int frameSize = frameEnd - frameStart + 1;
                     if (jpeg.openRAM(mjpegBuf + frameStart, frameSize, jpegDrawCallback)) {
+                        // Center-crop rather than clamp to 0: in portrait
+                        // (240 wide) a landscape-sourced frame (e.g. 320
+                        // wide) is wider than the screen, and a negative
+                        // origin here shifts it left so the same amount
+                        // gets cropped off both edges instead of only the
+                        // right/bottom. Relies on TFT_eSPI's pushImage
+                        // (called from jpegDrawCallback) clipping negative
+                        // coordinates safely — needs on-device
+                        // verification; if it misbehaves, fall back to
+                        // max(0, ...) like before (crops one edge only).
                         jpeg.decode(
-                            max(0, (TFT_W - jpeg.getWidth())  / 2),
-                            max(0, (TFT_H - jpeg.getHeight()) / 2),
+                            (tft.width()  - jpeg.getWidth())  / 2,
+                            (tft.height() - jpeg.getHeight()) / 2,
                             0
                         );
                         jpeg.close();

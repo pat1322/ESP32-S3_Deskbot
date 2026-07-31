@@ -102,6 +102,11 @@ static void handleDeviceStatePoll() {
     DeviceState state;
     if (!getDeviceState(state)) return;
 
+    // Applied before the screen-specific calls below so an orientation
+    // flip and a theme/quote/focus change landing on the same poll both
+    // take effect together, rather than the screen redrawing twice.
+    bool orientationChanged = displaySetOrientation(state.orientation);
+
     idleScreenSetTodoSummary(state.pendingCount, state.nextTask);
     idleScreenSetTheme(state.bgTheme);
     idleScreenSetQuote(state.quote);
@@ -116,10 +121,17 @@ static void handleDeviceStatePoll() {
         if (g_appState == AppState::IDLE) {
             transitionTo(AppState::FOCUS_TIMER);
             focusTimerEnter(state.focusLabel);
+        } else if (orientationChanged) {
+            // Still in FOCUS_TIMER — re-run Enter() so cached layout
+            // state (and tft.width()/height()-dependent drawing) resets
+            // against the new dimensions, same as a fresh entry would.
+            focusTimerEnter(state.focusLabel);
         }
         focusTimerSetRemaining(state.focusSecondsRemaining);
     } else if (g_appState == AppState::FOCUS_TIMER) {
-        transitionTo(AppState::IDLE);
+        transitionTo(AppState::IDLE); // already calls idleScreenEnter()
+    } else if (orientationChanged && g_appState == AppState::IDLE) {
+        idleScreenEnter();
     }
 
     if (state.pendingWifiSsid.length() > 0) {

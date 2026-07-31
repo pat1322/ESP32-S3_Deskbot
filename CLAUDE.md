@@ -155,6 +155,26 @@ exist specifically to prevent two audio tasks ever running concurrently
 across a tier-downgrade restart — both would otherwise drive the same
 static `i2sCodec`/`decoded` objects.
 
+## Screen orientation
+
+`display.cpp`'s `displaySetOrientation()` maps the website's
+landscape/portrait setting to `tft.setRotation()` — every draw call in
+`idle_screen.cpp`/`focus_timer.cpp`/`video_player.cpp` reads
+`tft.width()`/`tft.height()` live rather than a compile-time constant, so
+they all follow whatever the current rotation says. Two things here were
+written without hardware to verify against, both called out in comments
+at the point of use:
+
+- Which `setRotation()` value (0 vs 2) is actually portrait "the right way
+  up" for this panel's wiring — `setRotation(1)` is confirmed landscape
+  (unchanged from before this feature existed), `setRotation(0)` is a
+  guess for portrait.
+- `video_player.cpp`'s frame-centering math intentionally allows a
+  *negative* decode origin (rather than clamping to 0) so a landscape
+  video frame center-crops symmetrically on a narrower portrait screen —
+  relies on `TFT_eSPI`'s `pushImage` (called from the JPEGDEC draw
+  callback) clipping negative coordinates safely.
+
 ## WiFi credential flow
 
 There is no compile-time WiFi credential anymore — `firmware/Deskbot/src/

@@ -519,6 +519,13 @@ main.col-main { min-width: 0; }
   display: flex;
   flex-direction: column;
   background: radial-gradient(circle at 50% 0%, #1a1108 0%, #0a0d12 70%);
+  /* Mirrors the physical panel's real 320x240 proportions so switching
+     orientation here reads as an actual shape change, not just a label. */
+  aspect-ratio: 4 / 3;
+  transition: aspect-ratio 0.25s var(--ease);
+}
+.screen[data-orientation="portrait"] {
+  aspect-ratio: 3 / 4;
 }
 
 .screen-band {
@@ -582,10 +589,12 @@ main.col-main { min-width: 0; }
 }
 
 .screen-content {
+  flex: 1;
   padding: 18px 16px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
 }
 
 .clock {

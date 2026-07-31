@@ -32,6 +32,9 @@ def get_or_create_settings(db: Session) -> Settings:
     if s.focus_label is None:
         s.focus_label = "Focus"
         dirty = True
+    if s.orientation is None:
+        s.orientation = "landscape"
+        dirty = True
     if dirty:
         db.commit()
         db.refresh(s)
@@ -61,6 +64,8 @@ def update_settings(body: SettingsPatch, db: Session = Depends(get_db)):
         s.bg_theme = body.bg_theme
     if body.volume is not None:
         s.volume = body.volume
+    if body.orientation is not None:
+        s.orientation = body.orientation
     db.commit()
     db.refresh(s)
     return s

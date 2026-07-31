@@ -54,6 +54,14 @@ The Settings tab has a volume slider next to the background theme picker.
 It's persisted server-side and applied on the device's next poll (~45s) —
 no reflash needed.
 
+### Orientation
+
+Switch between landscape and portrait from the Settings tab's "Display"
+panel — meant for a Deskbot enclosure you can physically turn sideways,
+not a fixed-mount one. Applies on the device's next poll while idle or in
+a focus session (never mid-video). Landscape content wider than a portrait
+screen (240px instead of 320px) is center-cropped, not scaled down.
+
 ### Focus timer
 
 Start a countdown (a preset or a custom minute count) from the Home tab's

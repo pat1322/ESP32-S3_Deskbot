@@ -17,9 +17,10 @@
 #define PIN_DIN   12
 #define PIN_PA    48
 
-// Display
-#define TFT_W 320
-#define TFT_H 240
+// Display — no TFT_W/TFT_H here: the physical panel is fixed 320x240, but
+// which axis is "width" vs "height" depends on the live orientation
+// (display.cpp's displaySetOrientation()), so every draw call reads
+// tft.width()/tft.height() fresh instead of a compile-time constant.
 
 // ── Tuning ──────────────────────────────────────────────────────────
 #define VOLUME              0.4f

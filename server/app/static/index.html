@@ -120,7 +120,12 @@
         </section>
 
         <section class="panel">
-          <h2>Background &amp; Volume</h2>
+          <h2>Display</h2>
+          <div class="desk-label">Orientation</div>
+          <div class="theme-picker" id="orientation-picker">
+            <button type="button" data-orientation="landscape">Landscape</button>
+            <button type="button" data-orientation="portrait">Portrait</button>
+          </div>
           <div class="desk-label">Background theme</div>
           <div class="theme-picker" id="theme-picker">
             <button type="button" data-theme="drift">Drift</button>
@@ -159,7 +164,7 @@
 
     <aside class="desk-unit">
       <div class="desk-unit-label">Live preview</div>
-      <div class="screen" id="screen" data-theme="drift">
+      <div class="screen" id="screen" data-theme="drift" data-orientation="landscape">
         <div class="screen-band">
           <div class="fx-drift">
             <div class="orb o1"></div>

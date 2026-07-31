@@ -22,8 +22,8 @@ static void drawCountdown(int secondsRemaining) {
     tft.setTextSize(6);
     tft.setTextColor(COLOR_AMBER, TFT_BLACK);
     int w = (int)strlen(buf) * 6 * 6;
-    tft.fillRect(0, CLOCK_Y - 4, TFT_W, 48, TFT_BLACK);
-    tft.setCursor(max(0, (TFT_W - w) / 2), CLOCK_Y);
+    tft.fillRect(0, CLOCK_Y - 4, tft.width(), 48, TFT_BLACK);
+    tft.setCursor(max(0, (tft.width() - w) / 2), CLOCK_Y);
     tft.print(buf);
 }
 
@@ -34,14 +34,14 @@ void focusTimerEnter(const String& label) {
     tft.setTextSize(2);
     tft.setTextColor(COLOR_CYAN, TFT_BLACK);
     int w = (int)label.length() * 6 * 2;
-    tft.setCursor(max(0, (TFT_W - w) / 2), LABEL_Y);
+    tft.setCursor(max(0, (tft.width() - w) / 2), LABEL_Y);
     tft.print(label);
 
     const char* hint = "Started from the website";
     tft.setTextSize(1);
     tft.setTextColor(COLOR_MUTED, TFT_BLACK);
     int hw = (int)strlen(hint) * 6;
-    tft.setCursor(max(0, (TFT_W - hw) / 2), HINT_Y);
+    tft.setCursor(max(0, (tft.width() - hw) / 2), HINT_Y);
     tft.print(hint);
 
     lastDisplayedRemaining = -1;

@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, field_validator
 
-from .models import BG_THEMES
+from .models import BG_THEMES, ORIENTATIONS
 
 
 class SearchResult(BaseModel):
@@ -78,6 +78,7 @@ class QuoteOut(BaseModel):
 class SettingsOut(BaseModel):
     bg_theme: str
     volume: float
+    orientation: str
     wifi_apply_status: str
     pending_wifi_ssid: str | None = None  # never echoes the password back
     focus_active: bool
@@ -91,12 +92,20 @@ class SettingsOut(BaseModel):
 class SettingsPatch(BaseModel):
     bg_theme: str | None = None
     volume: float | None = None
+    orientation: str | None = None
 
     @field_validator("bg_theme")
     @classmethod
     def valid_theme(cls, v: str | None) -> str | None:
         if v is not None and v not in BG_THEMES:
             raise ValueError(f"bg_theme must be one of {BG_THEMES}")
+        return v
+
+    @field_validator("orientation")
+    @classmethod
+    def valid_orientation(cls, v: str | None) -> str | None:
+        if v is not None and v not in ORIENTATIONS:
+            raise ValueError(f"orientation must be one of {ORIENTATIONS}")
         return v
 
     @field_validator("volume")
@@ -138,6 +147,7 @@ class WifiAckIn(BaseModel):
 class DeviceStateOut(BaseModel):
     bg_theme: str
     volume: float
+    orientation: str = "landscape"
     pending_count: int
     next_task: str | None = None
     quote: str | None = None

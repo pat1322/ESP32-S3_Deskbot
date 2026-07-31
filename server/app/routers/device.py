@@ -34,6 +34,7 @@ def device_state(db: Session = Depends(get_db)):
     return DeviceStateOut(
         bg_theme=settings.bg_theme,
         volume=settings.volume,
+        orientation=settings.orientation,
         pending_count=len(pending),
         next_task=pending[0].text if pending else None,
         quote=_pick_quote(db),

@@ -9,13 +9,18 @@
 #include "pins.h"
 
 // ── Layout ──────────────────────────────────────────────────────────
-static const int BAND_X = 0,   BAND_Y = 6,   BAND_W = TFT_W, BAND_H = 50;
+// Y-positions/heights are landscape-tuned constants, kept as-is in
+// portrait too (leaves extra blank space below TODO_Y on the taller
+// portrait screen rather than a full proportional relayout — accepted
+// v1 trade-off). BAND_W and WIFI_X are screen-width-relative, so they
+// track tft.width() live instead of being fixed constants.
+static const int BAND_X = 0,   BAND_Y = 6,   BAND_H = 50;
 static const int CLOCK_Y = 72;   // text size 4
 static const int DATE_Y  = 114;  // text size 2
 static const int QUOTE_Y = 155;  // text size 1, in the blank gap below the date
 static const int DIVIDER_Y = 196;
 static const int TODO_Y  = 210;  // text size 1
-static const int WIFI_X = TFT_W - 26, WIFI_Y = 8; // top-right signal bars
+static const int WIFI_Y = 8; // top-right signal bars
 
 static TFT_eSprite band(&tft);
 
@@ -87,7 +92,7 @@ static void renderDrift(float t) {
 static void renderStarfield() {
     for (auto& s : stars) {
         s.x += s.speed;
-        if (s.x > BAND_W) s.x = 0;
+        if (s.x > band.width()) s.x = 0;
         band.fillCircle((int)s.x, (int)s.y, 1, s.color);
     }
 }
@@ -111,10 +116,10 @@ static void renderTodoLine() {
         : String(cachedPending) + (cachedPending == 1 ? " task: " : " tasks — next: ") + cachedNextTask;
     if (line.length() > 42) line = line.substring(0, 39) + "...";
 
-    tft.fillRect(0, TODO_Y - 2, TFT_W, 14, TFT_BLACK);
+    tft.fillRect(0, TODO_Y - 2, tft.width(), 14, TFT_BLACK);
     tft.setTextSize(1);
     tft.setTextColor(COLOR_MUTED, TFT_BLACK);
-    tft.setCursor(max(0, (TFT_W - (int)line.length() * 6) / 2), TODO_Y);
+    tft.setCursor(max(0, (tft.width() - (int)line.length() * 6) / 2), TODO_Y);
     tft.print(line);
     todoDirty = false;
 }
@@ -122,13 +127,13 @@ static void renderTodoLine() {
 static void renderQuoteLine() {
     // Wipe the whole gap regardless of length so a shorter new quote
     // doesn't leave stray characters from a longer previous one.
-    tft.fillRect(0, QUOTE_Y - 2, TFT_W, 14, TFT_BLACK);
+    tft.fillRect(0, QUOTE_Y - 2, tft.width(), 14, TFT_BLACK);
     if (cachedQuote.length() > 0) {
         String line = cachedQuote;
         if (line.length() > 48) line = line.substring(0, 45) + "...";
         tft.setTextSize(1);
         tft.setTextColor(COLOR_MUTED, TFT_BLACK);
-        tft.setCursor(max(0, (TFT_W - (int)line.length() * 6) / 2), QUOTE_Y);
+        tft.setCursor(max(0, (tft.width() - (int)line.length() * 6) / 2), QUOTE_Y);
         tft.print(line);
     }
     quoteDirty = false;
@@ -147,10 +152,11 @@ static void drawWifiIndicator() {
     if (bars == lastWifiBars) return;
     lastWifiBars = bars;
 
-    tft.fillRect(WIFI_X - 2, WIFI_Y - 2, 22, 14, TFT_BLACK);
+    int wifiX = tft.width() - 26;
+    tft.fillRect(wifiX - 2, WIFI_Y - 2, 22, 14, TFT_BLACK);
     for (int i = 0; i < 3; i++) {
         int barH = 4 + i * 4;
-        int x = WIFI_X + i * 6;
+        int x = wifiX + i * 6;
         int y = WIFI_Y + 12 - barH;
         uint16_t col = (i < bars) ? COLOR_CYAN : TFT_DARKGREY;
         tft.fillRect(x, y, 4, barH, col);
@@ -159,7 +165,7 @@ static void drawWifiIndicator() {
 
 void idleScreenEnter() {
     tft.fillScreen(TFT_BLACK);
-    tft.drawFastHLine(0, DIVIDER_Y, TFT_W, COLOR_MUTED);
+    tft.drawFastHLine(0, DIVIDER_Y, tft.width(), COLOR_MUTED);
 
     lastClockStr = "\x01";
     lastDateStr  = "\x01";
@@ -169,9 +175,14 @@ void idleScreenEnter() {
     lastClockMs  = 0;
     lastAnimMs   = 0;
 
-    if (band.width() == 0) {
+    // Recreate the band sprite if it's never existed, or if the screen
+    // width changed since it was created (an orientation switch) — a
+    // TFT_eSprite doesn't resize itself, so a stale-width sprite would
+    // either waste space or (worse) clip the ambient animation.
+    if (band.width() == 0 || band.width() != tft.width()) {
+        if (band.width() != 0) band.deleteSprite();
         band.setColorDepth(16);
-        band.createSprite(BAND_W, BAND_H);
+        band.createSprite(tft.width(), BAND_H);
     }
 }
 
@@ -202,8 +213,8 @@ void idleScreenTick() {
             tft.setTextSize(4);
             tft.setTextColor(COLOR_AMBER, TFT_BLACK);
             int w = clockStr.length() * 6 * 4;
-            tft.fillRect(0, CLOCK_Y - 2, TFT_W, 34, TFT_BLACK);
-            tft.setCursor(max(0, (TFT_W - w) / 2), CLOCK_Y);
+            tft.fillRect(0, CLOCK_Y - 2, tft.width(), 34, TFT_BLACK);
+            tft.setCursor(max(0, (tft.width() - w) / 2), CLOCK_Y);
             tft.print(clockStr);
             lastClockStr = clockStr;
         }
@@ -213,8 +224,8 @@ void idleScreenTick() {
             tft.setTextSize(2);
             tft.setTextColor(COLOR_MUTED, TFT_BLACK);
             int w = dateStr.length() * 6 * 2;
-            tft.fillRect(0, DATE_Y - 2, TFT_W, 18, TFT_BLACK);
-            tft.setCursor(max(0, (TFT_W - w) / 2), DATE_Y);
+            tft.fillRect(0, DATE_Y - 2, tft.width(), 18, TFT_BLACK);
+            tft.setCursor(max(0, (tft.width() - w) / 2), DATE_Y);
             tft.print(dateStr);
             lastDateStr = dateStr;
         }

@@ -86,6 +86,7 @@ async function loadSettings() {
     const res = await api('/api/settings');
     const data = await res.json();
     applyTheme(data.bg_theme);
+    applyOrientation(data.orientation);
     applyVolume(data.volume);
     applyWifiStatus(data.wifi_apply_status, data.pending_wifi_ssid);
   } catch {
@@ -110,6 +111,31 @@ $('#theme-picker').addEventListener('click', async (e) => {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bg_theme: theme }),
+    });
+  } catch {
+    loadSettings(); // revert to server truth on failure
+  }
+});
+
+// ── Orientation ──────────────────────────────────────────────────────
+
+function applyOrientation(orientation) {
+  $('#screen').dataset.orientation = orientation;
+  for (const btn of document.querySelectorAll('#orientation-picker button')) {
+    btn.classList.toggle('active', btn.dataset.orientation === orientation);
+  }
+}
+
+$('#orientation-picker').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const orientation = btn.dataset.orientation;
+  applyOrientation(orientation); // optimistic
+  try {
+    await api('/api/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orientation }),
     });
   } catch {
     loadSettings(); // revert to server truth on failure
