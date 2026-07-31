@@ -53,7 +53,9 @@
 
       <div class="site-nav-collapse" id="site-nav-collapse">
         <nav class="tab-nav" id="tab-nav">
-          <button type="button" class="tab-btn active" data-tab="home">Home</button>
+          <button type="button" class="tab-btn active" data-tab="youtube">YouTube</button>
+          <button type="button" class="tab-btn" data-tab="upload">Upload</button>
+          <button type="button" class="tab-btn" data-tab="tasks">Tasks</button>
           <button type="button" class="tab-btn" data-tab="settings">Settings</button>
         </nav>
         <a href="#" class="logout-link" id="logout-link">Log out</a>
@@ -63,7 +65,7 @@
 
   <div class="layout">
     <main class="col-main">
-      <div class="tab-panel" id="tab-home" data-tab-panel="home">
+      <div class="tab-panel" id="tab-youtube" data-tab-panel="youtube">
         <section class="panel">
           <h2>Search YouTube</h2>
           <form class="search-row" id="search-form">
@@ -72,6 +74,38 @@
           </form>
         </section>
 
+        <section class="panel">
+          <h2>Now playing</h2>
+          <div class="now-playing-row">
+            <span class="status-pill" id="now-status" data-status="idle">Idle</span>
+            <span class="source-badge hidden" id="now-badge">Upload</span>
+            <span class="now-playing-title muted" id="now-title">Nothing queued</span>
+            <button type="button" class="mini-btn" id="now-next" disabled>Next &#9654;</button>
+            <div class="now-playing-actions" id="now-actions"></div>
+          </div>
+          <div class="player-volume-row">
+            <span class="player-volume-icon" aria-hidden="true">&#128266;</span>
+            <input type="range" id="volume-slider" min="0" max="100" value="40">
+            <span id="volume-value">40%</span>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Up next</h2>
+          <div id="up-next-list">
+            <div class="empty-note">Nothing queued up.</div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Results</h2>
+          <div id="results">
+            <div class="empty-note">Search for something to play on your desk unit.</div>
+          </div>
+        </section>
+      </div>
+
+      <div class="tab-panel hidden" id="tab-upload" data-tab-panel="upload">
         <section class="panel">
           <h2>Upload media</h2>
           <div class="upload-row">
@@ -106,30 +140,9 @@
             <button type="button" class="mini-btn" data-action="cancel" id="photo-dismiss">Dismiss</button>
           </div>
         </section>
+      </div>
 
-        <section class="panel">
-          <h2>Now playing</h2>
-          <div class="now-playing-row">
-            <span class="status-pill" id="now-status" data-status="idle">Idle</span>
-            <span class="source-badge hidden" id="now-badge">Upload</span>
-            <span class="now-playing-title muted" id="now-title">Nothing queued</span>
-            <button type="button" class="mini-btn" id="now-next" disabled>Next &#9654;</button>
-            <div class="now-playing-actions" id="now-actions"></div>
-          </div>
-          <div class="player-volume-row">
-            <span class="player-volume-icon" aria-hidden="true">&#128266;</span>
-            <input type="range" id="volume-slider" min="0" max="100" value="40">
-            <span id="volume-value">40%</span>
-          </div>
-        </section>
-
-        <section class="panel">
-          <h2>Up next</h2>
-          <div id="up-next-list">
-            <div class="empty-note">Nothing queued up.</div>
-          </div>
-        </section>
-
+      <div class="tab-panel hidden" id="tab-tasks" data-tab-panel="tasks">
         <section class="panel">
           <h2>Focus timer</h2>
           <div id="focus-idle">
@@ -161,13 +174,6 @@
               <button type="submit">+</button>
             </form>
             <ul id="todo-list"></ul>
-          </div>
-        </section>
-
-        <section class="panel">
-          <h2>Results</h2>
-          <div id="results">
-            <div class="empty-note">Search for something to play on your desk unit.</div>
           </div>
         </section>
       </div>
@@ -203,7 +209,7 @@
             <button type="button" data-theme="starfield">Stars</button>
             <button type="button" data-theme="minimal">Minimal</button>
           </div>
-          <p class="wifi-hint">Volume lives on the Home tab's "Now playing"
+          <p class="wifi-hint">Volume lives on the YouTube tab's "Now playing"
             panel now — one control, not two.</p>
         </section>
 

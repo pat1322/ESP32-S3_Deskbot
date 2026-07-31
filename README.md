@@ -27,12 +27,13 @@ quote, both editable from the website — or, if a focus session is
 running, a countdown timer instead.
 
 The website has a top nav bar (collapsing to a hamburger menu on mobile)
-with two tabs: **Home** (search, now playing/up next with playback
-controls, to-do) for daily use, and **Settings** (network, background
-theme, idle quotes, device log) for device management. A "Live preview"
-in the sidebar mirrors the device's actual idle-screen layout. Both the
-website and the physical device open with a short branded animation
-(see "Boot & splash animation" below).
+with four tabs: **YouTube** (search, now playing/up next with playback
+controls, results), **Upload** (your own video/photo, camera capture),
+**Tasks** (focus timer, to-do), and **Settings** (network, background
+theme, idle quotes, device log). A "Live preview" in the sidebar mirrors
+the device's actual idle-screen layout. Both the website and the physical
+device open with a short branded animation (see "Boot & splash animation"
+below).
 
 ### Adaptive video quality
 
@@ -54,7 +55,7 @@ frame. Tune the thresholds against your own network using the serial log
 
 ### Playback controls
 
-The Home tab's "Now playing" panel doubles as a mini player: a **Next**
+The YouTube tab's "Now playing" panel doubles as a mini player: a **Next**
 button (enabled once something else is queued) skips the current video —
 under the hood it's the same cancel-and-advance mechanism as Cancel, just
 one click away — and a **volume** slider, persisted server-side and
@@ -82,7 +83,7 @@ screen (240px instead of 320px) is center-cropped, not scaled down.
 
 ### Focus timer
 
-Start a countdown (a preset or a custom minute count) from the Home tab's
+Start a countdown (a preset or a custom minute count) from the Tasks tab's
 "Focus timer" panel; the device switches its screen to a big countdown
 until it ends or you stop it early, then returns to idle. It doesn't
 interrupt a video that's already playing, and doesn't itself get
@@ -91,7 +92,7 @@ ends.
 
 ### Uploading your own video or photo
 
-The Home tab's "Upload media" panel lets you play your own video files or
+The Upload tab's "Upload media" panel lets you play your own video files or
 show a photo, no YouTube involved:
 
 - **Video** goes through the same pipeline as a searched video (encoded
