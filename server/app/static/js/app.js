@@ -280,7 +280,7 @@ $('#results').addEventListener('click', async (e) => {
       body: JSON.stringify({ video_id: videoId }),
     });
     if (res.status === 409) {
-      btn.textContent = 'Deskbot is busy';
+      btn.textContent = 'Queue full';
       setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 2500);
       return;
     }
@@ -294,7 +294,7 @@ $('#results').addEventListener('click', async (e) => {
   }
 });
 
-// ── Now playing ──────────────────────────────────────────────────────
+// ── Now playing + Up next ──────────────────────────────────────────────
 
 const STATUS_LABELS = {
   queued: 'Queued',
@@ -305,21 +305,47 @@ const STATUS_LABELS = {
   error: 'Error',
 };
 
+// Mirrors server/app/models.py's JOB_ACTIVE_STATUSES.
+const ACTIVE_STATUSES = ['queued', 'downloading', 'encoding', 'ready', 'playing'];
+
 let currentJobId = null;
+
+function renderUpNext(jobs) {
+  const el = $('#up-next-list');
+  if (jobs.length === 0) {
+    el.innerHTML = '<div class="empty-note">Nothing queued up.</div>';
+    return;
+  }
+  el.innerHTML = jobs.map((j) => `
+    <div class="up-next-row">
+      <span class="status-pill" data-status="${j.status}">${STATUS_LABELS[j.status] || j.status}</span>
+      <span class="up-next-title">${escapeHtml(j.title || 'Loading title…')}</span>
+      <button type="button" class="mini-btn" data-action="cancel" data-job-id="${j.job_id}">Cancel</button>
+    </div>
+  `).join('');
+}
 
 async function pollNowPlaying() {
   try {
-    // Unfiltered (not ?active=1): an "error" job isn't in the active-status
-    // list, so filtering to active-only made failures flash back to "Idle"
-    // on the very next poll (2.5s later) before you could ever read why.
-    // Fetching the single most recent job regardless of status keeps a
-    // failure visible until you Retry it or it ages out.
+    // Unfiltered (not ?active=1): an "error" job isn't in ACTIVE_STATUSES,
+    // so filtering to active-only made failures flash back to "Idle" on
+    // the very next poll (2.5s later) before you could ever read why.
+    // Fetching recent jobs regardless of status keeps a failure visible
+    // until you Retry it or it ages out.
     const res = await api('/api/jobs');
     const jobs = await res.json();
+
+    // Multiple jobs can be active at once (playlist) — services/job_worker.py
+    // processes them strictly FIFO, so the one actually downloading/playing
+    // right now is the OLDEST active job, not the most recently queued one.
+    const active = jobs
+      .filter((j) => ACTIVE_STATUSES.includes(j.status))
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
     const pill = $('#now-status');
     const title = $('#now-title');
     const actions = $('#now-actions');
-    const job = jobs[0];
+    const job = active[0] || jobs[0];
     if (!job || job.status === 'done' || job.status === 'cancelled') {
       currentJobId = null;
       pill.dataset.status = 'idle';
@@ -339,6 +365,8 @@ async function pollNowPlaying() {
         ? '<button type="button" class="mini-btn" data-action="retry">Retry</button>'
         : '<button type="button" class="mini-btn" data-action="cancel">Cancel</button>';
     }
+
+    renderUpNext(active.slice(1));
   } catch {
     // transient network hiccup, next poll will retry
   }
@@ -350,6 +378,19 @@ $('#now-actions').addEventListener('click', async (e) => {
   btn.disabled = true;
   try {
     await api(`/api/jobs/${currentJobId}/${btn.dataset.action}`, { method: 'POST' });
+  } catch {
+    // ignore, poll will resync
+  }
+  pollNowPlaying();
+});
+
+$('#up-next-list').addEventListener('click', async (e) => {
+  const btn = e.target.closest('.mini-btn');
+  if (!btn) return;
+  const jobId = btn.dataset.jobId;
+  btn.disabled = true;
+  try {
+    await api(`/api/jobs/${jobId}/cancel`, { method: 'POST' });
   } catch {
     // ignore, poll will resync
   }

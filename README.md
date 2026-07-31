@@ -129,8 +129,11 @@ scratch space that gets cleaned up automatically after each job is consumed.
 
 ## Notes and known trade-offs
 
-- Only one video job is processed at a time — queuing a second video while
-  one is in progress returns a 409 until the first finishes.
+- You can queue up multiple videos — they play back-to-back in the order
+  queued ("Up next" on the website shows what's waiting). Only one job
+  downloads/encodes/plays at a time either way; queuing further ahead just
+  lets the next one start converting while the current one's still
+  playing. Capped at 10 queued-at-once as a sanity limit.
 - Videos over ~20 minutes are rejected by default (`MAX_JOB_DURATION_S`) to
   bound worst-case CPU/disk use on a small Railway instance.
 - `yt-dlp` occasionally breaks when YouTube changes things; if search/queue

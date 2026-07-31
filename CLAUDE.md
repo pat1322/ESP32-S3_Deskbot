@@ -55,8 +55,14 @@ queued → downloading → encoding → ready → playing → done
                                         \-> cancelled
 ```
 
-Only one job is active (`JOB_ACTIVE_STATUSES`) at a time —
-`POST /api/queue` returns 409 if one's already in flight.
+Multiple jobs can be queued at once (a playlist) — `POST /api/queue` only
+409s past `routers/queue.py`'s `MAX_QUEUE_DEPTH` sanity cap, not on a
+single active job. `services/job_worker.py`'s `_worker_loop` already
+processed its `asyncio.Queue` strictly FIFO even before this, so nothing
+about download/encode concurrency changed — only the queue-time rejection
+did. The device still only ever plays one job at a time: `/video/current`
+returns the single oldest `"ready"` job, and the done-signal (above) makes
+the next one visible the moment the current one finishes.
 `services/job_worker.py`'s `process_job()` drives the whole pipeline:
 download via `yt-dlp` → encode via `ffmpeg` (see below) → mark `ready`. The
 device polls `GET /video/current` for a ready job, then

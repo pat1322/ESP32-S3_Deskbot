@@ -12,6 +12,11 @@ from ..services import job_worker
 
 router = APIRouter(tags=["queue"], dependencies=[Depends(require_web_session)])
 
+# Multiple videos can be queued at once (services/job_worker.py's worker
+# loop already processes them strictly FIFO, one at a time) — this is just
+# a sanity cap so the queue can't grow unbounded.
+MAX_QUEUE_DEPTH = 10
+
 
 def _to_out(job: Job) -> JobOut:
     return JobOut(
@@ -25,9 +30,9 @@ def _to_out(job: Job) -> JobOut:
 
 @router.post("/api/queue", response_model=JobOut, status_code=201)
 async def queue_video(body: QueueRequest, db: Session = Depends(get_db)):
-    existing = db.query(Job).filter(Job.status.in_(JOB_ACTIVE_STATUSES)).first()
-    if existing is not None:
-        raise HTTPException(status_code=409, detail="a job is already in progress")
+    active_count = db.query(Job).filter(Job.status.in_(JOB_ACTIVE_STATUSES)).count()
+    if active_count >= MAX_QUEUE_DEPTH:
+        raise HTTPException(status_code=409, detail=f"queue is full (max {MAX_QUEUE_DEPTH})")
 
     job = Job(video_id=body.video_id.strip(), fps=settings.default_fps, fps_low=settings.low_fps)
     db.add(job)
@@ -91,9 +96,9 @@ async def retry_job(job_id: str, db: Session = Depends(get_db)):
     if job.status != "error":
         raise HTTPException(status_code=409, detail="only errored jobs can be retried")
 
-    other_active = db.query(Job).filter(Job.status.in_(JOB_ACTIVE_STATUSES), Job.id != job.id).first()
-    if other_active is not None:
-        raise HTTPException(status_code=409, detail="another job is already in progress")
+    active_count = db.query(Job).filter(Job.status.in_(JOB_ACTIVE_STATUSES)).count()
+    if active_count >= MAX_QUEUE_DEPTH:
+        raise HTTPException(status_code=409, detail=f"queue is full (max {MAX_QUEUE_DEPTH})")
 
     job.status = "queued"
     job.error_message = None
