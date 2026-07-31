@@ -80,6 +80,9 @@ class SettingsOut(BaseModel):
     volume: float
     wifi_apply_status: str
     pending_wifi_ssid: str | None = None  # never echoes the password back
+    focus_active: bool
+    focus_seconds_remaining: int
+    focus_label: str
 
     class Config:
         from_attributes = True
@@ -109,6 +112,18 @@ class WifiSubmitIn(BaseModel):
     password: str
 
 
+class FocusStartIn(BaseModel):
+    minutes: int
+    label: str = "Focus"
+
+    @field_validator("minutes")
+    @classmethod
+    def valid_minutes(cls, v: int) -> int:
+        if not (1 <= v <= 180):
+            raise ValueError("minutes must be between 1 and 180")
+        return v
+
+
 class WifiAckIn(BaseModel):
     status: str  # "applied" | "failed"
 
@@ -126,6 +141,9 @@ class DeviceStateOut(BaseModel):
     pending_count: int
     next_task: str | None = None
     quote: str | None = None
+    focus_active: bool = False
+    focus_seconds_remaining: int = 0
+    focus_label: str = "Focus"
     pending_wifi_ssid: str | None = None
     pending_wifi_password: str | None = None
 

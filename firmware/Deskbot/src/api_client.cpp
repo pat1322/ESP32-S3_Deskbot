@@ -101,6 +101,9 @@ bool getDeviceState(DeviceState& out) {
     out.bgTheme = doc["bg_theme"] | "drift";
     out.volume = doc["volume"] | VOLUME;
     out.quote = doc["quote"] | "";
+    out.focusActive = doc["focus_active"] | false;
+    out.focusSecondsRemaining = doc["focus_seconds_remaining"] | 0;
+    out.focusLabel = doc["focus_label"] | "Focus";
     out.pendingWifiSsid = doc["pending_wifi_ssid"] | "";
     out.pendingWifiPassword = doc["pending_wifi_password"] | "";
     return true;

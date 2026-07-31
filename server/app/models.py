@@ -51,7 +51,26 @@ class Settings(Base):
     pending_wifi_password: Mapped[str | None] = mapped_column(String(128), nullable=True)
     wifi_apply_status: Mapped[str] = mapped_column(String(16), default="none")  # none|applying|applied|failed
 
+    # Focus/Pomodoro timer: set by POST /api/focus/start, cleared by
+    # POST /api/focus/stop. focus_end_at is the source of truth for the
+    # countdown — remaining time is always computed as (focus_end_at -
+    # now), never decremented/stored, so it stays correct across restarts
+    # and multiple pollers without any clock-sync bookkeeping.
+    focus_active: Mapped[bool] = mapped_column(Boolean, default=False)
+    focus_end_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    focus_label: Mapped[str] = mapped_column(String(32), default="Focus")
+
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @property
+    def focus_seconds_remaining(self) -> int:
+        # Computed on every read from focus_end_at rather than decremented
+        # anywhere, so it's always correct regardless of how many pollers
+        # (device + web tabs) ask, and survives a server restart untouched.
+        if not self.focus_active or self.focus_end_at is None:
+            return 0
+        remaining = (self.focus_end_at - datetime.utcnow()).total_seconds()
+        return max(0, int(remaining))
 
 
 class Todo(Base):

@@ -1,7 +1,8 @@
 # Deskbot
 
 A mini desk gadget built on an ESP32-S3: an animated idle clock, a YouTube
-video player, and a to-do list — all driven from a companion website.
+video player, a to-do list, rotating idle-screen quotes, and a focus/
+Pomodoro timer — all driven from a companion website.
 
 - **`firmware/Deskbot/`** — the ESP32-S3 sketch (idle clock + video playback)
 - **`server/`** — Python/FastAPI backend + the website (search, queue, to-do list)
@@ -17,9 +18,17 @@ MP3 audio track, matching exactly what the firmware expects. The device picks
 whichever tier its connection can actually sustain (see "Adaptive video
 quality" below), streams it over HTTP, decodes JPEG frames with `JPEGDEC`,
 and plays audio through the ES8311 codec via `AudioTools` — the same pipeline
-`VideoTester.ino` already proved out. When nothing is queued, the device
-shows an animated clock/date idle screen with a small to-do summary and a
-volume slider, both controlled from the website.
+`VideoTester.ino` already proved out. You can queue up several videos at
+once — they play back-to-back in order ("Up next" on the website shows
+what's waiting). When nothing is queued, the device shows an animated
+clock/date idle screen with a small to-do summary and a rotating short
+quote, both editable from the website — or, if a focus session is
+running, a countdown timer instead.
+
+The website is split into two tabs: **Home** (search, now playing, up
+next, to-do) for daily use, and **Settings** (network, background theme,
+volume, idle quotes, device log) for device management. A "Live preview"
+in the sidebar mirrors the device's actual idle-screen layout.
 
 ### Adaptive video quality
 
@@ -41,9 +50,18 @@ frame. Tune the thresholds against your own network using the serial log
 
 ### Volume
 
-The website's "Desk Unit" panel has a volume slider next to the background
-theme picker. It's persisted server-side and applied on the device's next
-poll (~45s) — no reflash needed.
+The Settings tab has a volume slider next to the background theme picker.
+It's persisted server-side and applied on the device's next poll (~45s) —
+no reflash needed.
+
+### Focus timer
+
+Start a countdown (a preset or a custom minute count) from the Home tab's
+"Focus timer" panel; the device switches its screen to a big countdown
+until it ends or you stop it early, then returns to idle. It doesn't
+interrupt a video that's already playing, and doesn't itself get
+interrupted by a newly-queued video — that just waits until the session
+ends.
 
 ### WiFi setup
 

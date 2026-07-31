@@ -28,5 +28,10 @@ void transitionTo(AppState newState) {
             break;
         case AppState::VIDEO_PLAYING:
             break;
+        case AppState::FOCUS_TIMER:
+            // caller (Deskbot.ino) calls focusTimerEnter(label) itself,
+            // same reasoning as VIDEO_STARTING above — it has the label
+            // in hand from the poll response, this switch doesn't.
+            break;
     }
 }

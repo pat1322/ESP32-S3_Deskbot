@@ -339,6 +339,67 @@ main.col-main { min-width: 0; }
 }
 .now-playing-title.muted { color: var(--muted); }
 
+/* ── Focus timer ───────────────────────────────────────────────── */
+
+.focus-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.focus-custom {
+  display: flex;
+  gap: 8px;
+}
+.focus-custom input {
+  flex: 1;
+  background: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 10px 12px;
+  font-size: 14px;
+  min-width: 0;
+}
+.focus-custom button {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 0 18px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.focus-custom button:hover { border-color: var(--amber); color: var(--amber); }
+
+#focus-active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0 4px;
+}
+
+.focus-countdown {
+  font-family: var(--mono);
+  font-size: 40px;
+  font-weight: 600;
+  color: var(--amber);
+  text-shadow: 0 0 18px rgba(255, 157, 66, 0.35);
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-active-label {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+#focus-stop { margin-top: 8px; }
+
 /* ── Up next ───────────────────────────────────────────────────── */
 
 #up-next-list { display: flex; flex-direction: column; gap: 6px; }

@@ -30,6 +30,9 @@ struct DeviceState {
     String bgTheme = "drift";
     float  volume = VOLUME; // pins.h boot default until the first successful poll
     String quote;
+    bool   focusActive = false;
+    int    focusSecondsRemaining = 0;
+    String focusLabel = "Focus";
     String pendingWifiSsid;
     String pendingWifiPassword;
 };

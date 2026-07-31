@@ -484,6 +484,63 @@ $('#clear-done').addEventListener('click', async (e) => {
   loadTodos();
 });
 
+// ── Focus timer ──────────────────────────────────────────────────────
+
+function formatMMSS(totalSeconds) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+async function startFocus(minutes, label) {
+  await api('/api/focus/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ minutes, label }),
+  });
+  pollFocus();
+}
+
+async function pollFocus() {
+  try {
+    const res = await api('/api/settings');
+    const data = await res.json();
+    const idleEl = $('#focus-idle');
+    const activeEl = $('#focus-active');
+    if (data.focus_active) {
+      idleEl.classList.add('hidden');
+      activeEl.classList.remove('hidden');
+      $('#focus-countdown').textContent = formatMMSS(data.focus_seconds_remaining);
+      $('#focus-active-label').textContent = data.focus_label;
+    } else {
+      idleEl.classList.remove('hidden');
+      activeEl.classList.add('hidden');
+    }
+  } catch {
+    // transient network hiccup, next poll will retry
+  }
+}
+
+$('.focus-presets').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  startFocus(Number(btn.dataset.minutes), btn.dataset.label);
+});
+
+$('#focus-custom-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = $('#focus-minutes');
+  const minutes = Number(input.value);
+  if (!minutes || minutes < 1) return;
+  input.value = '';
+  startFocus(minutes, 'Focus');
+});
+
+$('#focus-stop').addEventListener('click', async () => {
+  await api('/api/focus/stop', { method: 'POST' });
+  pollFocus();
+});
+
 // ── Idle quotes ──────────────────────────────────────────────────────
 
 function renderQuotes(quotes) {
@@ -545,6 +602,8 @@ function boot() {
   setInterval(pollNowPlaying, 2500);
   pollDeviceLog();
   setInterval(pollDeviceLog, 3000);
+  pollFocus();
+  setInterval(pollFocus, 1000);
 }
 
 checkAuth();

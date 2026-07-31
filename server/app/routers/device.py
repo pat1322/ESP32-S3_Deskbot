@@ -37,6 +37,9 @@ def device_state(db: Session = Depends(get_db)):
         pending_count=len(pending),
         next_task=pending[0].text if pending else None,
         quote=_pick_quote(db),
+        focus_active=settings.focus_active,
+        focus_seconds_remaining=settings.focus_seconds_remaining,
+        focus_label=settings.focus_label,
         pending_wifi_ssid=settings.pending_wifi_ssid if applying else None,
         pending_wifi_password=settings.pending_wifi_password if applying else None,
     )

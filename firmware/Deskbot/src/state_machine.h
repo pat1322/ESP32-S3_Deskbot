@@ -1,6 +1,6 @@
 #pragma once
 
-enum class AppState { BOOT, WIFI_CONNECT, WIFI_PORTAL, IDLE, VIDEO_STARTING, VIDEO_PLAYING };
+enum class AppState { BOOT, WIFI_CONNECT, WIFI_PORTAL, IDLE, VIDEO_STARTING, VIDEO_PLAYING, FOCUS_TIMER };
 
 extern AppState g_appState;
 

@@ -9,6 +9,7 @@
 #include "src/api_client.h"
 #include "src/video_player.h"
 #include "src/idle_screen.h"
+#include "src/focus_timer.h"
 #include "src/state_machine.h"
 #include "src/wifi_store.h"
 #include "src/wifi_portal.h"
@@ -106,6 +107,21 @@ static void handleDeviceStatePoll() {
     idleScreenSetQuote(state.quote);
     setDeviceVolume(state.volume);
 
+    // Focus mode takes priority over the idle screen but doesn't interrupt
+    // video playback (handleDeviceStatePoll only ever runs from IDLE/
+    // FOCUS_TIMER, never VIDEO_PLAYING) and itself isn't interrupted by a
+    // queued video — handleVideoJobIfAny() simply isn't called while in
+    // FOCUS_TIMER, so a queued job just waits until the session ends.
+    if (state.focusActive) {
+        if (g_appState == AppState::IDLE) {
+            transitionTo(AppState::FOCUS_TIMER);
+            focusTimerEnter(state.focusLabel);
+        }
+        focusTimerSetRemaining(state.focusSecondsRemaining);
+    } else if (g_appState == AppState::FOCUS_TIMER) {
+        transitionTo(AppState::IDLE);
+    }
+
     if (state.pendingWifiSsid.length() > 0) {
         applyPendingWifi(state.pendingWifiSsid, state.pendingWifiPassword);
     }
@@ -198,6 +214,25 @@ void loop() {
             // playVideo() is blocking and returns before g_appState would
             // ever be observed here — nothing to do.
             break;
+
+        case AppState::FOCUS_TIMER: {
+            focusTimerTick();
+            if (focusTimerExpired()) {
+                transitionTo(AppState::IDLE);
+                break;
+            }
+
+            uint32_t now = millis();
+            if (now - lastDeviceStateMs >= DEVICE_STATE_POLL_INTERVAL_MS) {
+                lastDeviceStateMs = now;
+                handleDeviceStatePoll();
+            }
+            if (now - lastLogFlushMs >= 5000) {
+                lastLogFlushMs = now;
+                remoteLogFlush();
+            }
+            break;
+        }
     }
 
     yield();

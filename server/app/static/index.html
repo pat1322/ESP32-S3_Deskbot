@@ -60,6 +60,26 @@
         </section>
 
         <section class="panel">
+          <h2>Focus timer</h2>
+          <div id="focus-idle">
+            <div class="focus-presets">
+              <button type="button" class="mini-btn" data-minutes="25" data-label="Focus">25 min focus</button>
+              <button type="button" class="mini-btn" data-minutes="5" data-label="Break">5 min break</button>
+              <button type="button" class="mini-btn" data-minutes="50" data-label="Focus">50 min focus</button>
+            </div>
+            <form class="focus-custom" id="focus-custom-form">
+              <input type="number" id="focus-minutes" min="1" max="180" placeholder="Custom minutes" autocomplete="off">
+              <button type="submit">Start</button>
+            </form>
+          </div>
+          <div id="focus-active" class="hidden">
+            <div class="focus-countdown" id="focus-countdown">00:00</div>
+            <div class="focus-active-label" id="focus-active-label">Focus</div>
+            <button type="button" class="mini-btn" data-action="cancel" id="focus-stop">Stop</button>
+          </div>
+        </section>
+
+        <section class="panel">
           <div class="todo-label-row">
             <h2>To-do</h2>
             <a href="#" id="clear-done">Clear done</a>

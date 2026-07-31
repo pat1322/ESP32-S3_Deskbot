@@ -112,6 +112,18 @@ introduce a genuinely destructive schema change (renaming/dropping a
 column, changing a type), this shim won't help — you're on your own for
 that one.
 
+**Corollary: a non-nullable new column needs a read-time coalesce.** A
+column added this way is nullable at the DB level no matter what the
+model/response-schema declare, so an existing row (created before that
+column existed) reads back as `None` for it — which then fails Pydantic
+response validation if the schema field isn't `Optional`. `routers/
+settings.py`'s `get_or_create_settings()` is the pattern: coalesce `None`
+→ the intended default once, right after fetching, before anything reads
+the row (see `focus_active`/`focus_label` there for a worked example).
+This bit real production data the first time a column was added to an
+already-existing table — `bg_theme`/`volume`/etc. never hit it because
+they were part of `Settings`'s original schema, not added later.
+
 ## Firmware playback pacing (the part most likely to bite you)
 
 `firmware/Deskbot/src/video_player.cpp`'s `playVideo()` is a for-loop over
