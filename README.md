@@ -65,10 +65,15 @@ video — watch for `[Audio] Resyncing, N ms behind` in the serial log.
 The YouTube tab's "Now playing" panel doubles as a mini player: a **Next**
 button (enabled once something else is queued) skips the current video —
 under the hood it's the same cancel-and-advance mechanism as Cancel, just
-one click away — and a **volume** slider, persisted server-side and
-applied on the device's next poll (~45s), no reflash needed. Pause/
-resume/seek aren't supported yet — the device has no pause primitive or
-server-side seek today.
+one click away — a **volume** slider, persisted server-side and applied
+on the device's next poll (~45s), no reflash needed — and a **Pause/
+Resume** button once a job is actually playing. Pause doesn't buffer or
+rewind anything: the device just stops reading its video/audio streams
+while paused (the connections stay open, backpressuring the server's
+writes) and picks back up exactly where the stream naturally is on
+Resume. True **seek/fast-forward isn't supported** — the pipeline has no
+keyframe index or server-side seek, so scrubbing to an arbitrary point
+isn't possible today.
 
 ### Boot & splash animation
 
@@ -107,12 +112,15 @@ show a photo, no YouTube involved:
   queue — uploads and searches interleave in the same playlist, badged
   "Upload" so you can tell them apart) — capped at `MAX_UPLOAD_VIDEO_MB`
   (default 300MB) and the same `MAX_JOB_DURATION_S` limit as YouTube
-  videos.
+  videos. The website shows an instant local preview of the picked file
+  (before it's even finished encoding) so you can confirm it's the right
+  one.
 - **Photo** resizes/crops to the device's screen and displays immediately,
   persisting until you upload another or hit Dismiss — capped at
   `MAX_UPLOAD_PHOTO_MB` (default 20MB). Doesn't interrupt a playing video
   or an active focus session; if either is active when you upload a
-  photo, it just waits its turn.
+  photo, it just waits its turn. The website also shows the actual
+  server-processed result (post-filter) once it's ready.
 
 You can also capture a photo directly from your webcam or phone camera —
 "Use camera" opens a live preview in the browser (needs camera

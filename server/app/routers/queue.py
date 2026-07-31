@@ -66,7 +66,13 @@ async def cancel_job(job_id: str, db: Session = Depends(get_db)):
     job = db.get(Job, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="job not found")
-    if job.status not in JOB_ACTIVE_STATUSES:
+    # "error" isn't in JOB_ACTIVE_STATUSES (it's terminal, like "cancelled"/
+    # "done"), but it's still reachable from the website's "Now playing"
+    # panel via a Dismiss button -- without this, a permanently-broken
+    # upload (bad file, corrupt encode) had no way to be cleared except
+    # waiting for cleanup.py's up-to-15-minute sweep, since Retry alone
+    # just reruns the same failing pipeline against the same bad source.
+    if job.status not in JOB_ACTIVE_STATUSES and job.status != "error":
         raise HTTPException(status_code=409, detail="job is not active")
 
     if job.status in ("downloading", "encoding"):

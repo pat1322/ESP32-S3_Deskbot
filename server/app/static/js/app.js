@@ -550,8 +550,11 @@ async function pollNowPlaying() {
       const pauseBtn = job.status === 'playing'
         ? `<button type="button" class="mini-btn" data-action="${job.paused ? 'resume' : 'pause'}">${job.paused ? 'Resume' : 'Pause'}</button>`
         : '';
+      // "cancel" doubles as dismiss for an error job (routers/queue.py
+      // now allows it) -- without it, a permanently-broken upload had no
+      // way to clear except waiting out cleanup.py's background sweep.
       actions.innerHTML = job.status === 'error'
-        ? '<button type="button" class="mini-btn" data-action="retry">Retry</button>'
+        ? '<button type="button" class="mini-btn" data-action="retry">Retry</button><button type="button" class="mini-btn" data-action="cancel">Dismiss</button>'
         : `${pauseBtn}<button type="button" class="mini-btn" data-action="cancel">Cancel</button>`;
       // Only makes sense to skip forward if something's actually queued
       // behind the current one -- "Next" stops the current job (the queue
