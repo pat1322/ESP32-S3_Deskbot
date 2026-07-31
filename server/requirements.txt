@@ -7,3 +7,11 @@ pydantic-settings==2.7.0
 itsdangerous==2.2.0
 python-multipart==0.0.20
 aiofiles==24.1.0
+
+# Anime photo filter (services/anime_service.py) — CPU-only inference
+# against the bundled app/data/face_paint_512_v2.onnx model. Deliberately
+# not torch: that's only ever needed for the one-time local conversion
+# that produced the .onnx file, never at runtime.
+onnxruntime==1.28.0
+numpy==2.2.6
+Pillow==12.0.0

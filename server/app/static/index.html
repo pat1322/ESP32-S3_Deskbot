@@ -54,6 +54,21 @@
               Upload photo
               <input type="file" id="upload-photo-input" accept="image/*" class="hidden">
             </label>
+            <button type="button" class="upload-btn" id="camera-open-btn">Use camera</button>
+          </div>
+          <div class="desk-label">Photo filter (applies to uploads and camera captures)</div>
+          <select id="photo-filter" class="photo-filter-select">
+            <option value="none">None</option>
+            <option value="bw">Black &amp; white</option>
+            <option value="cinematic">Cinematic</option>
+            <option value="anime">Anime</option>
+          </select>
+          <div id="camera-capture" class="camera-capture hidden">
+            <video id="camera-video" autoplay playsinline muted></video>
+            <div class="camera-actions">
+              <button type="button" class="mini-btn" id="camera-capture-btn">Capture</button>
+              <button type="button" class="mini-btn" id="camera-cancel-btn">Cancel</button>
+            </div>
           </div>
           <div id="upload-status" class="upload-status hidden"></div>
           <div class="now-playing-row photo-active-row hidden" id="photo-active-row">

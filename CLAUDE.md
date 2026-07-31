@@ -118,7 +118,45 @@ active focus session, isn't interrupted by either either.
 (not a hand-rolled `StreamingResponse`) specifically to avoid
 re-introducing the chunked-transfer-encoding bug the video/audio streams
 in `routers/video.py` once had — sizes are already known on disk, so
-there's no reason to risk it.
+there's no reason to risk it. Camera capture (the website's "Use camera"
+button) rides this exact same endpoint too — a captured `<canvas>` frame
+and a picked file both arrive as ordinary multipart data, so there's no
+separate backend path for it.
+
+**Photo filters.** `routers/upload.py`'s `upload_photo()` takes a
+`filter` field: `"bw"`/`"cinematic"` are one-line `ffmpeg` color grades
+(`ffmpeg_service.PHOTO_FILTERS`, composed into the same `extract_still()`
+call that resizes/crops — no extra dependency). `"anime"` is a real
+image-to-image model, `server/app/data/face_paint_512_v2.onnx`
+(`services/anime_service.py`), run via `onnxruntime` on CPU before the
+same resize/crop step. Two things worth knowing if you ever touch this:
+
+- **Where the model came from.** [bryandlee/animegan2-pytorch](https://github.com/bryandlee/animegan2-pytorch)'s
+  `face_paint_512_v2` checkpoint (trained on face crops — works better on
+  webcam selfies than landscape photos), converted from PyTorch to ONNX
+  *once*, locally, during development (`torch.onnx.export()` — `torch`
+  itself never ships; `requirements.txt` only has `onnxruntime`). Traces
+  back to TachibanaYoshino's original AnimeGAN research release, which
+  permits non-commercial personal use — fits this project's own
+  single-owner framing (`SECURITY.md`), but if you fork this for
+  something else, check that license again yourself.
+- **Preprocessing must match the reference exactly.** `anime_service.py`'s
+  `to_tensor * 2 - 1` normalization, the `-1..1` output range, and the
+  "round dimensions to a multiple of 32" resize rule are all copied
+  verbatim from the reference repo's own inference script, not derived —
+  the model is fully convolutional (no fixed input size), but it was
+  never tested against arbitrary preprocessing choices, only these ones.
+  Get this wrong and the model still runs (no shape error) but produces
+  visibly wrong output, not a crash.
+
+Real CPU inference latency was measured before shipping this (not
+assumed): roughly 1s for a typical webcam-resolution photo on ordinary
+development hardware, session-load excluded (the `onnxruntime.
+InferenceSession` in `anime_service.py` is a lazy-loaded module-level
+singleton — built once, reused for every request after that). That's
+comfortably synchronous, which is why the anime filter blocks the upload
+request like `bw`/`cinematic` do rather than going through an async job
+queue.
 
 **Dual-tier encoding**: every job produces *two* MJPEG files at encode
 time — `mjpeg_path` ("high", `settings.default_fps`/`jpeg_q`) and

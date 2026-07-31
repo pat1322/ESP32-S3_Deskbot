@@ -89,6 +89,18 @@ show a photo, no YouTube involved:
   or an active focus session; if either is active when you upload a
   photo, it just waits its turn.
 
+You can also capture a photo directly from your webcam or phone camera —
+"Use camera" opens a live preview in the browser (needs camera
+permission), "Capture" grabs the current frame and uploads it exactly
+like a picked file.
+
+Either way, pick a filter before uploading/capturing: **black & white**
+and **cinematic** are instant color grades; **anime** runs the photo
+through a small pretrained style-transfer model (CPU, no GPU needed,
+roughly a second on typical hardware) — it's trained on faces, so it
+suits webcam selfies better than landscape photos. See `CLAUDE.md` for
+where that model came from and its license.
+
 ### WiFi setup
 
 The device's WiFi credentials live in on-device flash (NVS), not in

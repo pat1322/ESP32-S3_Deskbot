@@ -3,7 +3,7 @@ import shutil
 import uuid
 
 import aiofiles
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from ..auth import require_web_session
@@ -11,12 +11,13 @@ from ..config import settings
 from ..db import get_db
 from ..models import JOB_ACTIVE_STATUSES, MAX_QUEUE_DEPTH, Job, Photo
 from ..schemas import JobOut, SettingsOut
-from ..services import ffmpeg_service, job_worker
+from ..services import anime_service, ffmpeg_service, job_worker
 from .settings import get_or_create_settings
 
 router = APIRouter(tags=["upload"], dependencies=[Depends(require_web_session)])
 
 _CHUNK_SIZE = 1024 * 1024
+_PHOTO_FILTER_CHOICES = ("none", "bw", "cinematic", "anime")
 
 
 async def _save_upload(file: UploadFile, dest_path: str, max_mb: int) -> None:
@@ -80,27 +81,47 @@ async def upload_video(file: UploadFile, db: Session = Depends(get_db)):
 
 
 @router.post("/api/upload/photo", response_model=SettingsOut)
-async def upload_photo(file: UploadFile, db: Session = Depends(get_db)):
+async def upload_photo(
+    file: UploadFile,
+    filter_name: str = Form("none", alias="filter"),
+    db: Session = Depends(get_db),
+):
+    if filter_name not in _PHOTO_FILTER_CHOICES:
+        raise HTTPException(status_code=400, detail=f"filter must be one of {_PHOTO_FILTER_CHOICES}")
+
     photo_dir = os.path.join(settings.media_dir, "photos")
     os.makedirs(photo_dir, exist_ok=True)
 
     photo_id = str(uuid.uuid4())
     ext = os.path.splitext(file.filename or "")[1] or ".jpg"
     raw_path = os.path.join(photo_dir, f"{photo_id}_raw{ext}")
+    styled_path = os.path.join(photo_dir, f"{photo_id}_styled.jpg")
     final_path = os.path.join(photo_dir, f"{photo_id}.jpg")
 
     await _save_upload(file, raw_path, settings.max_upload_photo_mb)
 
     try:
+        # "anime" runs through the ONNX model first (services/
+        # anime_service.py) into an intermediate file; "bw"/"cinematic"
+        # are plain ffmpeg color grades applied in the same pass as the
+        # resize below. Mutually exclusive, not stackable.
+        resize_source = raw_path
+        if filter_name == "anime":
+            await anime_service.stylize(raw_path, styled_path)
+            resize_source = styled_path
+
         # ffmpeg treats a still image input as a one-frame "video", so the
         # same crop-to-fill resize extract_mjpeg uses for video frames
         # works unchanged here — no separate image-processing dependency.
-        await ffmpeg_service.extract_still(raw_path, final_path)
+        vf_extra = ffmpeg_service.PHOTO_FILTERS.get(filter_name)
+        await ffmpeg_service.extract_still(resize_source, final_path, vf_extra=vf_extra)
     except ffmpeg_service.FfmpegError as exc:
         raise HTTPException(status_code=400, detail=f"could not process image: {exc}") from exc
     finally:
         if os.path.exists(raw_path):
             os.remove(raw_path)
+        if os.path.exists(styled_path):
+            os.remove(styled_path)
 
     s = get_or_create_settings(db)
     if s.current_photo_id:

@@ -59,18 +59,36 @@ async def probe_duration(source_path: str) -> float:
     return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
 
 
+# Deterministic, single-pass ffmpeg color grades for the "bw"/"cinematic"
+# photo filter choices (routers/upload.py) -- no model, no extra
+# dependency, unlike the "anime" choice (services/anime_service.py).
+# "cinematic" pushes shadows toward teal and highlights toward orange
+# (colorbalance) with a mild contrast/saturation lift (eq) -- a standard,
+# well-known grade, not anything ML-derived.
+PHOTO_FILTERS = {
+    "bw": "format=gray",
+    "cinematic": (
+        "eq=contrast=1.1:saturation=1.2,"
+        "colorbalance=rs=-0.1:gs=0.05:bs=0.15:rm=0.05:gm=0:bm=-0.05:rh=0.15:gh=0.05:bh=-0.15"
+    ),
+}
+
+
 async def extract_still(
     source_path: str,
     jpeg_path: str,
     quality: int = 5,
     width: int = 320,
     height: int = 240,
+    vf_extra: str | None = None,
 ) -> None:
     # Same crop-to-fill scaling as extract_mjpeg, one frame instead of a
     # stream. Lower default quality number (better) than extract_mjpeg's --
     # a single still's file size doesn't need to stay small for
     # streaming/decode-speed reasons the way a continuous fps stream does.
     vf = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
+    if vf_extra:
+        vf = f"{vf_extra},{vf}"
     await _run(
         "ffmpeg", "-y",
         "-i", source_path,

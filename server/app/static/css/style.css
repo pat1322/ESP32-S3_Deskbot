@@ -289,6 +289,41 @@ main.col-main { min-width: 0; }
 }
 .upload-btn:hover { background: var(--cyan); color: #06211f; box-shadow: 0 0 18px rgba(95, 225, 217, 0.3); }
 
+.photo-filter-select {
+  width: 100%;
+  background: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 9px 12px;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.camera-capture {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+#camera-video {
+  width: 100%;
+  max-width: 360px;
+  border-radius: var(--radius-sm);
+  background: #000;
+}
+
+.camera-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .upload-status {
   margin-top: 10px;
   font-size: 12px;

@@ -329,13 +329,11 @@ $('#upload-video-input').addEventListener('change', async (e) => {
   }
 });
 
-$('#upload-photo-input').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  e.target.value = '';
-  if (!file) return;
-  setUploadStatus('busy', `Uploading ${file.name}…`);
+async function uploadPhotoBlob(blob, label) {
+  setUploadStatus('busy', `Uploading ${label}…`);
   const form = new FormData();
-  form.append('file', file);
+  form.append('file', blob, label);
+  form.append('filter', $('#photo-filter').value);
   try {
     const res = await api('/api/upload/photo', { method: 'POST', body: form });
     if (!res.ok) {
@@ -343,11 +341,18 @@ $('#upload-photo-input').addEventListener('change', async (e) => {
       setUploadStatus('error', data.detail || 'Upload failed.');
       return;
     }
-    setUploadStatus('ok', `${file.name} showing on desk unit.`);
+    setUploadStatus('ok', `${label} showing on desk unit.`);
     pollFocus(); // photo_active/photo_id ride the same /api/settings poll
   } catch {
     setUploadStatus('error', 'Upload failed — check your connection.');
   }
+}
+
+$('#upload-photo-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  uploadPhotoBlob(file, file.name);
 });
 
 $('#photo-dismiss').addEventListener('click', async () => {
@@ -357,6 +362,48 @@ $('#photo-dismiss').addEventListener('click', async () => {
     // ignore, next poll resyncs
   }
   pollFocus();
+});
+
+// ── Camera capture ───────────────────────────────────────────────────
+// Rides the exact same /api/upload/photo endpoint as the file-picker
+// path above — a captured canvas frame and a picked file both arrive
+// there as ordinary multipart file data, no separate backend needed.
+
+let cameraStream = null;
+
+function stopCamera() {
+  if (cameraStream) {
+    for (const track of cameraStream.getTracks()) track.stop();
+    cameraStream = null;
+  }
+  $('#camera-capture').classList.add('hidden');
+}
+
+$('#camera-open-btn').addEventListener('click', async () => {
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user' },
+      audio: false,
+    });
+    $('#camera-video').srcObject = cameraStream;
+    $('#camera-capture').classList.remove('hidden');
+  } catch {
+    setUploadStatus('error', 'Could not access camera — check browser permissions.');
+  }
+});
+
+$('#camera-cancel-btn').addEventListener('click', stopCamera);
+
+$('#camera-capture-btn').addEventListener('click', () => {
+  const video = $('#camera-video');
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  canvas.toBlob((blob) => {
+    if (blob) uploadPhotoBlob(blob, 'camera-capture.jpg');
+  }, 'image/jpeg', 0.92);
+  stopCamera();
 });
 
 $('#results').addEventListener('click', async (e) => {
