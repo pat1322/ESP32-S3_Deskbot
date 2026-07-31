@@ -123,12 +123,31 @@ static void audioTaskFn(void*) {
     g_audioCli.setConnectionTimeout(15000);
 
     HTTPClient http;
-    http.begin(g_audioCli, serverBase() + "/video/stream/" + g_jobId + ".mp3");
-    http.addHeader("X-Api-Key", DESKBOT_API_KEY);
-    http.setTimeout(600000);
+    String audioUrl = serverBase() + "/video/stream/" + g_jobId + ".mp3";
 
-    int code = http.GET();
-    Serial.printf("[Audio] HTTP %d\n", code);
+    // A restart (mid-stream tier downgrade, or the pre-playback high->low
+    // correction) tears down and reopens the video-side TLS connection at
+    // almost the same moment this task reopens its own — back-to-back TLS
+    // handshakes under that heap/radio pressure occasionally drop the first
+    // attempt. Without a retry here, that single failure used to be
+    // permanent: the fallback below marks itself "ready" either way so
+    // video playback is never blocked on audio, which meant a restart could
+    // silently play the rest of the video with no sound and no visible
+    // error (only a Serial print, easy to miss).
+    int code = -1;
+    for (int attempt = 0; attempt < 3 && g_playing; attempt++) {
+        if (attempt > 0) {
+            http.end();
+            g_audioCli.stop();
+            delay(300);
+        }
+        http.begin(g_audioCli, audioUrl);
+        http.addHeader("X-Api-Key", DESKBOT_API_KEY);
+        http.setTimeout(600000);
+        code = http.GET();
+        Serial.printf("[Audio] HTTP %d (attempt %d)\n", code, attempt);
+        if (code == 200) break;
+    }
 
     if (code == 200) {
         WiFiClient* s = http.getStreamPtr();

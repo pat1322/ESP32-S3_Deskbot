@@ -210,9 +210,14 @@ void idleScreenTick() {
 
         String clockStr(clockBuf);
         if (clockStr != lastClockStr) {
-            tft.setTextSize(4);
+            // Landscape (320 wide) always fits size 4 ("12:34:56 PM" is
+            // 264px). Portrait is only 240 wide, which that same string
+            // overflows by almost exactly one glyph — drop to size 3
+            // rather than let the last character run off the edge.
+            int size = (clockStr.length() * 6 * 4 <= tft.width()) ? 4 : 3;
+            tft.setTextSize(size);
             tft.setTextColor(COLOR_AMBER, TFT_BLACK);
-            int w = clockStr.length() * 6 * 4;
+            int w = clockStr.length() * 6 * size;
             tft.fillRect(0, CLOCK_Y - 2, tft.width(), 34, TFT_BLACK);
             tft.setCursor(max(0, (tft.width() - w) / 2), CLOCK_Y);
             tft.print(clockStr);
