@@ -26,10 +26,13 @@ clock/date idle screen with a small to-do summary and a rotating short
 quote, both editable from the website — or, if a focus session is
 running, a countdown timer instead.
 
-The website is split into two tabs: **Home** (search, now playing, up
-next, to-do) for daily use, and **Settings** (network, background theme,
-volume, idle quotes, device log) for device management. A "Live preview"
-in the sidebar mirrors the device's actual idle-screen layout.
+The website has a top nav bar (collapsing to a hamburger menu on mobile)
+with two tabs: **Home** (search, now playing/up next with playback
+controls, to-do) for daily use, and **Settings** (network, background
+theme, idle quotes, device log) for device management. A "Live preview"
+in the sidebar mirrors the device's actual idle-screen layout. Both the
+website and the physical device open with a short branded animation
+(see "Boot & splash animation" below).
 
 ### Adaptive video quality
 
@@ -49,11 +52,25 @@ frame. Tune the thresholds against your own network using the serial log
   `VIDEO_SKIP_RATIO_DOWNGRADE`, `VIDEO_FORCE_DRAW_MAX_SKIP` in
   `firmware/Deskbot/src/pins.h`.
 
-### Volume
+### Playback controls
 
-The Settings tab has a volume slider next to the background theme picker.
-It's persisted server-side and applied on the device's next poll (~45s) —
-no reflash needed.
+The Home tab's "Now playing" panel doubles as a mini player: a **Next**
+button (enabled once something else is queued) skips the current video —
+under the hood it's the same cancel-and-advance mechanism as Cancel, just
+one click away — and a **volume** slider, persisted server-side and
+applied on the device's next poll (~45s), no reflash needed. Pause/
+resume/seek aren't supported yet — the device has no pause primitive or
+server-side seek today.
+
+### Boot & splash animation
+
+The device plays a short (~2s) branded animation on boot — three dots
+orbit in and settle onto a ring, then the "DESKBOT" wordmark and a
+"Developed by Patrick Perez" credit line fade in — drawn with `TFT_eSPI`
+primitives, no image assets. The website shows a matching animated splash
+(SVG + CSS) on every page load, held for a minimum time and until the
+login/session check resolves, whichever is longer, so it never flashes
+away before there's real content underneath it.
 
 ### Orientation
 

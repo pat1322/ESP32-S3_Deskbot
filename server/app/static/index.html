@@ -8,6 +8,19 @@
 </head>
 <body>
 
+<div id="splash">
+  <div class="splash-inner">
+    <svg class="splash-mark" viewBox="0 0 40 40" aria-hidden="true">
+      <circle class="splash-ring" cx="20" cy="20" r="13" fill="none" stroke="var(--amber)" stroke-width="2"/>
+      <circle class="splash-dot splash-dot-1" cx="20" cy="5" r="2.6" fill="var(--cyan)"/>
+      <circle class="splash-dot splash-dot-2" cx="32" cy="27" r="2.2" fill="var(--amber)"/>
+      <circle class="splash-dot splash-dot-3" cx="8" cy="27" r="2.2" fill="var(--cyan)"/>
+    </svg>
+    <div class="splash-wordmark">DESKBOT</div>
+    <div class="splash-tagline">Your desk, live.</div>
+  </div>
+</div>
+
 <section id="login-screen" class="hidden">
   <form class="login-card" id="login-form">
     <div class="logotype">DESKBOT</div>
@@ -19,18 +32,34 @@
 </section>
 
 <div id="app" class="hidden">
-  <header class="top">
-    <div>
-      <div class="logotype">DESKBOT</div>
-      <div class="tagline">Search, queue, and keep a list &mdash; your desk unit reads it live.</div>
-    </div>
-    <a href="#" class="logout-link" id="logout-link">Log out</a>
-  </header>
+  <header class="site-nav">
+    <div class="site-nav-inner">
+      <div class="site-nav-brand">
+        <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+          <circle cx="20" cy="20" r="13" fill="none" stroke="var(--amber)" stroke-width="2"/>
+          <circle cx="20" cy="5" r="2.6" fill="var(--cyan)"/>
+          <circle cx="32" cy="27" r="2.2" fill="var(--amber)"/>
+          <circle cx="8" cy="27" r="2.2" fill="var(--cyan)"/>
+        </svg>
+        <div>
+          <div class="logotype">DESKBOT</div>
+          <div class="tagline">Search, queue, and keep a list &mdash; your desk unit reads it live.</div>
+        </div>
+      </div>
 
-  <nav class="tab-nav" id="tab-nav">
-    <button type="button" class="tab-btn active" data-tab="home">Home</button>
-    <button type="button" class="tab-btn" data-tab="settings">Settings</button>
-  </nav>
+      <button type="button" class="nav-hamburger" id="nav-hamburger" aria-label="Toggle menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+
+      <div class="site-nav-collapse" id="site-nav-collapse">
+        <nav class="tab-nav" id="tab-nav">
+          <button type="button" class="tab-btn active" data-tab="home">Home</button>
+          <button type="button" class="tab-btn" data-tab="settings">Settings</button>
+        </nav>
+        <a href="#" class="logout-link" id="logout-link">Log out</a>
+      </div>
+    </div>
+  </header>
 
   <div class="layout">
     <main class="col-main">
@@ -84,7 +113,13 @@
             <span class="status-pill" id="now-status" data-status="idle">Idle</span>
             <span class="source-badge hidden" id="now-badge">Upload</span>
             <span class="now-playing-title muted" id="now-title">Nothing queued</span>
+            <button type="button" class="mini-btn" id="now-next" disabled>Next &#9654;</button>
             <div class="now-playing-actions" id="now-actions"></div>
+          </div>
+          <div class="player-volume-row">
+            <span class="player-volume-icon" aria-hidden="true">&#128266;</span>
+            <input type="range" id="volume-slider" min="0" max="100" value="40">
+            <span id="volume-value">40%</span>
           </div>
         </section>
 
@@ -168,11 +203,8 @@
             <button type="button" data-theme="starfield">Stars</button>
             <button type="button" data-theme="minimal">Minimal</button>
           </div>
-          <div class="desk-label">Volume</div>
-          <div class="volume-control">
-            <input type="range" id="volume-slider" min="0" max="100" value="40">
-            <span id="volume-value">40%</span>
-          </div>
+          <p class="wifi-hint">Volume lives on the Home tab's "Now playing"
+            panel now — one control, not two.</p>
         </section>
 
         <section class="panel">

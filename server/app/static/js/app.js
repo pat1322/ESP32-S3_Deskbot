@@ -62,6 +62,20 @@ $('#tab-nav').addEventListener('click', (e) => {
   for (const panel of document.querySelectorAll('.tab-panel')) {
     panel.classList.toggle('hidden', panel.dataset.tabPanel !== tab);
   }
+  closeNavMenu(); // picking a tab on mobile should close the dropdown
+});
+
+// ── Mobile nav menu ──────────────────────────────────────────────────
+
+function closeNavMenu() {
+  $('#site-nav-collapse').classList.remove('open');
+  $('#nav-hamburger').setAttribute('aria-expanded', 'false');
+}
+
+$('#nav-hamburger').addEventListener('click', () => {
+  const collapse = $('#site-nav-collapse');
+  const open = collapse.classList.toggle('open');
+  $('#nav-hamburger').setAttribute('aria-expanded', String(open));
 });
 
 // ── Desk unit clock ──────────────────────────────────────────────────
@@ -487,6 +501,7 @@ async function pollNowPlaying() {
     const badge = $('#now-badge');
     const title = $('#now-title');
     const actions = $('#now-actions');
+    const nextBtn = $('#now-next');
     const job = active[0] || jobs[0];
     if (!job || job.status === 'done' || job.status === 'cancelled') {
       currentJobId = null;
@@ -496,6 +511,7 @@ async function pollNowPlaying() {
       title.textContent = 'Nothing queued';
       title.classList.add('muted');
       actions.innerHTML = '';
+      nextBtn.disabled = true;
     } else {
       currentJobId = job.job_id;
       pill.dataset.status = job.status;
@@ -508,6 +524,10 @@ async function pollNowPlaying() {
       actions.innerHTML = job.status === 'error'
         ? '<button type="button" class="mini-btn" data-action="retry">Retry</button>'
         : '<button type="button" class="mini-btn" data-action="cancel">Cancel</button>';
+      // Only makes sense to skip forward if something's actually queued
+      // behind the current one -- "Next" stops the current job (the queue
+      // then naturally advances) rather than being a distinct endpoint.
+      nextBtn.disabled = job.status === 'error' || active.length < 2;
     }
 
     renderUpNext(active.slice(1));
@@ -522,6 +542,17 @@ $('#now-actions').addEventListener('click', async (e) => {
   btn.disabled = true;
   try {
     await api(`/api/jobs/${currentJobId}/${btn.dataset.action}`, { method: 'POST' });
+  } catch {
+    // ignore, poll will resync
+  }
+  pollNowPlaying();
+});
+
+$('#now-next').addEventListener('click', async () => {
+  if (!currentJobId) return;
+  $('#now-next').disabled = true;
+  try {
+    await api(`/api/jobs/${currentJobId}/cancel`, { method: 'POST' });
   } catch {
     // ignore, poll will resync
   }
@@ -754,4 +785,23 @@ function boot() {
   setInterval(pollFocus, 1000);
 }
 
-checkAuth();
+// ── Splash screen ────────────────────────────────────────────────────
+// #splash is visible by default (see index.html) so it covers the very
+// first paint with no flash of unstyled content. Held for a minimum
+// SPLASH_MIN_MS *and* until checkAuth() resolves, whichever is longer, so
+// it never fades away before there's real content underneath it.
+
+const SPLASH_MIN_MS = 900;
+const splashStart = Date.now();
+
+function hideSplash() {
+  const splash = $('#splash');
+  if (!splash) return;
+  splash.addEventListener('transitionend', () => splash.remove(), { once: true });
+  splash.classList.add('splash-out');
+}
+
+checkAuth().finally(() => {
+  const wait = Math.max(0, SPLASH_MIN_MS - (Date.now() - splashStart));
+  setTimeout(hideSplash, wait);
+});

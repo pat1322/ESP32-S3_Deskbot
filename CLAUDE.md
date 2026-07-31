@@ -30,6 +30,12 @@ VideoTester/         original proof-of-concept (untouched, reference only)
 - Firmware screen states: `firmware/Deskbot/src/state_machine.h`/`.cpp`
   (`AppState` enum) is the single source of truth for what the device is
   doing; `Deskbot.ino`'s `loop()` switches on it.
+- The brand mark (ring + 3 orbiting dots): drawn independently in three
+  places that don't share code — `index.html`'s `.brand-mark` (nav bar,
+  static SVG), `index.html`'s `#splash` (animated SVG + CSS `@keyframes`,
+  `style.css`), and `firmware/Deskbot/src/boot_screen.cpp` (same shape via
+  `TFT_eSPI` primitives). Changing the mark's look means updating all
+  three by hand.
 
 ## Auth model
 
@@ -283,3 +289,17 @@ knowing about each other:
 - `stream_mjpeg`'s `tier` param silently falls back to `"high"` if `"low"`
   is requested but not ready/missing — this is intentional, not a
   swallowed error.
+- `routers/web.py`'s cache-busting (`_VERSION`, appended to the CSS/JS URLs
+  on every request) never touches cookies or `localStorage` — deliberate,
+  not a half-finished version of "clear all site data." The session cookie
+  is the only auth mechanism; wiping it would force a re-login on every
+  deploy instead of just showing fresh assets.
+- The Now Playing panel's "Next" button doesn't call a dedicated skip
+  endpoint — it calls `POST /api/jobs/{id}/cancel` on the current job,
+  exactly like Cancel does. There's no server-side concept of "skip," only
+  "this job is over"; the queue advances the same way either way.
+- `boot_screen.cpp` duplicates `idle_screen.cpp`'s `blend565()` helper
+  instead of sharing it — `bootScreenPlay()` runs from `setup()` right
+  after `displayInit()`, before the state machine (or any other screen
+  module) has been entered, so it's kept self-contained on purpose rather
+  than depending on `idle_screen.cpp`'s init order.

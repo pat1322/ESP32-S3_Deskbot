@@ -5,6 +5,7 @@
 
 #include "src/pins.h"
 #include "src/display.h"
+#include "src/boot_screen.h"
 #include "src/network.h"
 #include "src/api_client.h"
 #include "src/video_player.h"
@@ -175,6 +176,7 @@ void setup() {
     remoteLog("[Boot] Reset reason: %s", resetReasonStr(esp_reset_reason()));
 
     displayInit();
+    bootScreenPlay(); // branded logo beat, before the state machine starts
     transitionTo(AppState::BOOT);
 
     initVideoSubsystem();
