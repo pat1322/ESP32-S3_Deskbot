@@ -4,16 +4,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from ..auth import require_device_key
+from ..auth import require_device_key, require_device_or_web
 from ..db import get_db
 from ..models import Photo
 from ..schemas import CurrentPhotoOut
 from .settings import get_or_create_settings
 
-router = APIRouter(tags=["photo"], dependencies=[Depends(require_device_key)])
+router = APIRouter(tags=["photo"])
 
 
-@router.get("/photo/current", response_model=CurrentPhotoOut)
+@router.get("/photo/current", response_model=CurrentPhotoOut, dependencies=[Depends(require_device_key)])
 def current(db: Session = Depends(get_db)):
     s = get_or_create_settings(db)
     if not s.current_photo_id:
@@ -21,7 +21,11 @@ def current(db: Session = Depends(get_db)):
     return CurrentPhotoOut(ready=True, photo_id=s.current_photo_id)
 
 
-@router.get("/photo/stream/{photo_id}.jpg")
+# require_device_or_web (not device-only like /photo/current above) so the
+# website can render this straight in an <img src> using the session
+# cookie it already has -- a plain <img> tag can't attach an X-Api-Key
+# header. Mirrors the same reasoning as /device/state (see auth.py).
+@router.get("/photo/stream/{photo_id}.jpg", dependencies=[Depends(require_device_or_web)])
 def stream_photo(photo_id: str, db: Session = Depends(get_db)):
     photo = db.get(Photo, photo_id)
     if photo is None or not os.path.exists(photo.path):

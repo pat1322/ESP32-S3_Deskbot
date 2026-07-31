@@ -477,6 +477,18 @@ main.col-main { min-width: 0; }
 .upload-status[data-state="error"] { color: var(--danger); }
 .upload-status[data-state="ok"] { color: var(--amber); }
 
+.upload-preview {
+  display: block;
+  margin-top: 12px;
+  width: 100%;
+  max-width: 360px;
+  max-height: 320px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: #000;
+  object-fit: contain;
+}
+
 .source-badge {
   font-family: var(--mono);
   font-size: 10px;

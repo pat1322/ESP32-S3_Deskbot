@@ -318,11 +318,23 @@ function setUploadStatus(state, message) {
   }
 }
 
+let videoPreviewUrl = null;
+
 $('#upload-video-input').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   e.target.value = ''; // allow re-selecting the same file later
   if (!file) return;
   setUploadStatus('busy', `Uploading ${file.name}…`);
+
+  // Local preview of the picked file itself -- shown immediately, no
+  // server round trip (the encode hasn't even started yet at this point).
+  if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+  videoPreviewUrl = URL.createObjectURL(file);
+  const videoPreview = $('#video-preview');
+  videoPreview.src = videoPreviewUrl;
+  videoPreview.classList.remove('hidden');
+  $('#photo-preview').classList.add('hidden');
+
   const form = new FormData();
   form.append('file', file);
   try {
@@ -355,7 +367,17 @@ async function uploadPhotoBlob(blob, label) {
       setUploadStatus('error', data.detail || 'Upload failed.');
       return;
     }
+    const data = await res.json();
     setUploadStatus('ok', `${label} showing on desk unit.`);
+
+    // Server-processed result (post-filter) -- distinct from the video
+    // preview above, which shows the raw local file before any encoding.
+    if (data.photo_id) {
+      const photoPreview = $('#photo-preview');
+      $('#video-preview').classList.add('hidden');
+      photoPreview.src = `/photo/stream/${data.photo_id}.jpg?t=${Date.now()}`;
+      photoPreview.classList.remove('hidden');
+    }
     pollFocus(); // photo_active/photo_id ride the same /api/settings poll
   } catch {
     setUploadStatus('error', 'Upload failed — check your connection.');
@@ -375,6 +397,7 @@ $('#photo-dismiss').addEventListener('click', async () => {
   } catch {
     // ignore, next poll resyncs
   }
+  $('#photo-preview').classList.add('hidden');
   pollFocus();
 });
 

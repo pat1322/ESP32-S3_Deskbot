@@ -68,8 +68,8 @@ async def probe_duration(source_path: str) -> float:
 PHOTO_FILTERS = {
     "bw": "format=gray",
     "cinematic": (
-        "eq=contrast=1.1:saturation=1.2,"
-        "colorbalance=rs=-0.1:gs=0.05:bs=0.15:rm=0.05:gm=0:bm=-0.05:rh=0.15:gh=0.05:bh=-0.15"
+        "eq=contrast=1.25:saturation=1.35,"
+        "colorbalance=rs=-0.18:gs=0.08:bs=0.25:rm=0.1:gm=0:bm=-0.1:rh=0.25:gh=0.08:bh=-0.25"
     ),
 }
 
