@@ -28,6 +28,10 @@
 #define STREAM_STALL_MS      15000
 #define AUDIO_PRIME_MS       350
 #define FALLBACK_FPS         15
+// How often playVideo() asks the server whether its job is still
+// "playing" (a website cancel flips this) so a cancel stops the screen
+// within a few seconds instead of only when the video naturally ends.
+#define VIDEO_CANCEL_CHECK_MS 3000
 
 #define JOB_POLL_INTERVAL_MS          5000
 #define DEVICE_STATE_POLL_INTERVAL_MS 45000

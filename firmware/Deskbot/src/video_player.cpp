@@ -4,6 +4,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <JPEGDEC.h>
+#include <ArduinoJson.h>
 
 #include "pins.h"
 #include "display.h"
@@ -41,6 +42,12 @@ static I2SCodecStream i2sCodec(brdDrv);
 static WiFiClientSecure   g_audioCli;
 static MP3DecoderHelix    g_audioMp3Dec;
 static EncodedAudioStream g_audioDecoded(&i2sCodec, &g_audioMp3Dec);
+
+// Used only for the periodic mid-playback cancel check below — kept global
+// for the same reason as g_audioCli above: it's reused roughly every 3s for
+// the entire length of a video, so a stack-local WiFiClientSecure here would
+// churn its TLS session buffers dozens of times per video.
+static WiFiClientSecure g_statusCli;
 
 static uint8_t* mjpegBuf = nullptr;
 
@@ -81,6 +88,31 @@ static String serverBase() {
     String base = String(DESKBOT_SERVER_URL);
     while (base.endsWith("/")) base.remove(base.length() - 1);
     return base;
+}
+
+// Polled roughly every VIDEO_CANCEL_CHECK_MS during playback so a
+// website-initiated cancel (which only updates the job's status
+// server-side — the device has no other way to find out) stops the
+// screen within a few seconds instead of playing the whole video out.
+// Defaults to true (keep playing) on any request/parse failure, so a
+// transient network hiccup can't stop playback on its own.
+static bool isJobStillPlaying(const String& jobId) {
+    g_statusCli.setInsecure();
+    g_statusCli.setConnectionTimeout(4000);
+    HTTPClient http;
+    http.begin(g_statusCli, serverBase() + "/video/status/" + jobId);
+    http.addHeader("X-Api-Key", DESKBOT_API_KEY);
+    http.setTimeout(4000);
+    int code = http.GET();
+    if (code != 200) { http.end(); g_statusCli.stop(); return true; }
+    String resp = http.getString();
+    http.end();
+    g_statusCli.stop();
+
+    StaticJsonDocument<192> doc;
+    if (deserializeJson(doc, resp) != DeserializationError::Ok) return true;
+    const char* status = doc["status"] | "playing";
+    return strcmp(status, "playing") == 0;
 }
 
 static void audioTaskFn(void*) {
@@ -297,6 +329,7 @@ bool playVideo(const String& jobId, const String& title) {
         uint32_t discardedFrames        = 0;
         int      consecutiveDiscards    = 0;
         bool     needsMidStreamDowngrade = false;
+        uint32_t lastCancelCheckMs      = millis();
 
         // Read-position pointer into mjpegBuf, instead of memmove-ing the
         // whole remaining buffer after every single frame: memmove-per-frame
@@ -309,6 +342,15 @@ bool playVideo(const String& jobId, const String& title) {
         int readPos = 0;
 
         while (g_playing) {
+
+            if (millis() - lastCancelCheckMs >= VIDEO_CANCEL_CHECK_MS) {
+                lastCancelCheckMs = millis();
+                if (!isJobStillPlaying(jobId)) {
+                    remoteLog("[Video] Cancelled from website, stopping");
+                    remoteLogFlush();
+                    break;
+                }
+            }
 
             int avail = vs->available();
             if (avail > 0) {

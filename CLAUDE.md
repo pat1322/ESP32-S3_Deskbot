@@ -52,6 +52,7 @@ accounts. See `SECURITY.md` for the full list of accepted trade-offs.
 ```
 queued → downloading → encoding → ready → playing → done
                                         \-> error
+                                        \-> cancelled
 ```
 
 Only one job is active (`JOB_ACTIVE_STATUSES`) at a time —
@@ -60,8 +61,27 @@ Only one job is active (`JOB_ACTIVE_STATUSES`) at a time —
 download via `yt-dlp` → encode via `ffmpeg` (see below) → mark `ready`. The
 device polls `GET /video/current` for a ready job, then
 `POST /video/current/clear` flips it to `playing` so it isn't reported
-twice. `services/cleanup.py` sweeps stale `ready`/`playing`/`error` jobs on
-a timer, deleting their media.
+twice. `services/cleanup.py` sweeps stale `ready`/`playing`/`error`/
+`cancelled` jobs on a timer, deleting their media — this is only a
+fallback net, not the primary way `playing` resolves (see below).
+
+**Ending a `playing` job promptly.** The device has no way to push
+"finished" the instant it happens other than telling the server itself:
+`video_player.cpp`'s `playVideo()` calls `POST /video/current/done` right
+after it returns (success, stall, or cancel — doesn't matter which), which
+flips `playing` → `done` immediately. Without this, `playing` would only
+resolve via `cleanup.py`'s sweep, up to `ready_grace_period_s` (15 min)
+later — which is exactly what happens if the device never got to send it
+(crash, power loss, etc.), so the sweep still matters as a backstop.
+
+**`cancelled` vs `error`.** A user-initiated cancel (`POST
+/api/jobs/{id}/cancel`) always sets `cancelled`, not `error` — the website
+treats them differently (`cancelled` clears straight back to "Idle";
+`error` shows a Retry button). If the job was already `playing` on the
+device, cancelling only updates the DB — the device finds out via its own
+polling: `playVideo()`'s decode loop calls `GET /video/status/{id}` every
+`VIDEO_CANCEL_CHECK_MS` (`pins.h`) and stops within a few seconds once the
+status is no longer `"playing"`.
 
 **Dual-tier encoding**: every job produces *two* MJPEG files at encode
 time — `mjpeg_path` ("high", `settings.default_fps`/`jpeg_q`) and

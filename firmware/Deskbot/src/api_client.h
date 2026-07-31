@@ -14,6 +14,13 @@ String getJobTitle(const String& jobId);
 // from ready -> playing server-side) so it won't be reported again.
 void clearCurrentJob();
 
+// Tells the server playback of this job has ended (however it ended —
+// finished, stalled out, or was cancelled mid-stream) so the website's
+// "Now Playing" clears promptly instead of waiting up to 15 minutes for
+// the server's background cleanup sweep. Call once right after
+// playVideo() returns, regardless of its result.
+void postVideoDone(const String& jobId);
+
 // Combined device state polled from /device/state: to-do summary, chosen
 // background theme, volume, and (while a website-initiated network switch
 // is pending) the new WiFi credentials to try.

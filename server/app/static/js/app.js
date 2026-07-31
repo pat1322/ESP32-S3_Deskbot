@@ -306,7 +306,7 @@ async function pollNowPlaying() {
     const title = $('#now-title');
     const actions = $('#now-actions');
     const job = jobs[0];
-    if (!job || job.status === 'done') {
+    if (!job || job.status === 'done' || job.status === 'cancelled') {
       currentJobId = null;
       pill.dataset.status = 'idle';
       pill.textContent = 'Idle';

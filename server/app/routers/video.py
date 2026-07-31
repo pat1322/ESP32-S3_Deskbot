@@ -1,4 +1,5 @@
 import os
+import shutil
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,7 +9,8 @@ from sqlalchemy.orm import Session
 from ..auth import require_device_key
 from ..db import get_db
 from ..models import Job
-from ..schemas import CurrentJobOut, JobOut
+from ..schemas import CurrentJobOut, JobOut, VideoDoneIn
+from ..services import job_worker
 
 router = APIRouter(tags=["video"], dependencies=[Depends(require_device_key)])
 
@@ -52,6 +54,25 @@ def clear_current(db: Session = Depends(get_db)):
     if job is not None:
         job.status = "playing"
         job.consumed_at = datetime.utcnow()
+        db.commit()
+    return {"ok": True}
+
+
+@router.post("/video/current/done")
+def video_done(body: VideoDoneIn, db: Session = Depends(get_db)):
+    # The device calls this right after playVideo() returns (finished,
+    # stalled, or cancelled mid-stream) so "Now Playing" clears promptly
+    # instead of waiting for cleanup.py's background sweep (up to
+    # ready_grace_period_s later). Only acts on a job still "playing" —
+    # a job already moved on (e.g. cancelled from the website, which sets
+    # "cancelled" directly) is left alone.
+    job = db.get(Job, body.job_id)
+    if job is not None and job.status == "playing":
+        shutil.rmtree(job_worker.job_dir(job.id), ignore_errors=True)
+        job.status = "done"
+        job.mjpeg_path = None
+        job.mjpeg_path_low = None
+        job.mp3_path = None
         db.commit()
     return {"ok": True}
 

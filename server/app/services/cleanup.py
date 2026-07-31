@@ -36,7 +36,7 @@ def _sweep_once() -> None:
 
         stale_errors = (
             db.query(Job)
-            .filter(Job.status == "error")
+            .filter(Job.status.in_(["error", "cancelled"]))
             .filter(Job.updated_at < error_cutoff)
             .all()
         )

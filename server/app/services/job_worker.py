@@ -96,7 +96,7 @@ async def process_job(job_id: str) -> None:
 
         except asyncio.CancelledError:
             logger.info("job %s cancelled by user", job_id)
-            job.status = "error"
+            job.status = "cancelled"
             job.error_message = "Cancelled by user"
             db.commit()
             shutil.rmtree(out_dir, ignore_errors=True)

@@ -37,6 +37,10 @@ class CurrentJobOut(BaseModel):
     job_id: str | None = None
 
 
+class VideoDoneIn(BaseModel):
+    job_id: str
+
+
 class TodoIn(BaseModel):
     text: str
 

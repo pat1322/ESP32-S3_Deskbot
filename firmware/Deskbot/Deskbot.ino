@@ -63,6 +63,11 @@ static void handleVideoJobIfAny() {
         playVideo(jobId, title);
     }
 
+    // However playback ended — finished, stalled, or cancelled mid-stream —
+    // tell the server now instead of leaving "Now Playing" stuck until the
+    // background cleanup sweep gets to it (up to 15 minutes later).
+    postVideoDone(jobId);
+
     transitionTo(AppState::IDLE);
     lastJobPollMs = millis();
 }

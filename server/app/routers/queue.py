@@ -68,9 +68,12 @@ async def cancel_job(job_id: str, db: Session = Depends(get_db)):
         job_worker.cancel_job(job_id)
     else:
         # queued (not yet started) or ready/playing (no subprocess running,
-        # unconsumed media just sitting on disk) — clean up directly.
+        # unconsumed media just sitting on disk) — clean up directly. A
+        # "playing" job is picked up by the device's mid-playback cancel
+        # check (video_player.cpp polls /video/status every few seconds)
+        # within a few seconds of this status flipping away from "playing".
         shutil.rmtree(job_worker.job_dir(job_id), ignore_errors=True)
-        job.status = "error"
+        job.status = "cancelled"
         job.error_message = "Cancelled by user"
         job.mjpeg_path = None
         job.mjpeg_path_low = None

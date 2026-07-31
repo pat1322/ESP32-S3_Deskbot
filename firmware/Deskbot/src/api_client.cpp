@@ -60,6 +60,23 @@ void clearCurrentJob() {
     http.end();
 }
 
+void postVideoDone(const String& jobId) {
+    WiFiClientSecure cli;
+    cli.setInsecure();
+    cli.setConnectionTimeout(8000);
+    HTTPClient http;
+    http.begin(cli, serverBase() + "/video/current/done");
+    http.addHeader("X-Api-Key", DESKBOT_API_KEY);
+    http.addHeader("Content-Type", "application/json");
+    http.setTimeout(8000);
+    StaticJsonDocument<96> doc;
+    doc["job_id"] = jobId;
+    String body;
+    serializeJson(doc, body);
+    http.POST(body);
+    http.end();
+}
+
 bool getDeviceState(DeviceState& out) {
     WiFiClientSecure cli;
     cli.setInsecure();
