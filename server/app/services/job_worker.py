@@ -52,39 +52,56 @@ async def process_job(job_id: str) -> None:
         os.makedirs(out_dir, exist_ok=True)
 
         try:
-            meta = await ytdlp_service.get_metadata(job.video_id)
-            duration = meta.get("duration")
-            if not duration:
-                raise ValueError("video has no fixed duration (likely a live stream) — not supported")
-            if duration > settings.max_job_duration_s:
-                raise ValueError(
-                    f"video is {duration}s, exceeds {settings.max_job_duration_s}s limit"
-                )
+            if job.source_type == "upload":
+                # File already saved to job.source_path by
+                # routers/upload.py before this job was enqueued — no
+                # yt-dlp involved, just validate duration the same way
+                # the youtube path does (via ffmpeg's own stderr banner
+                # rather than a separate ffprobe binary — see
+                # ffmpeg_service.probe_duration).
+                source_path = job.source_path
+                duration = await ffmpeg_service.probe_duration(source_path)
+                if duration > settings.max_job_duration_s:
+                    raise ValueError(
+                        f"video is {int(duration)}s, exceeds {settings.max_job_duration_s}s limit"
+                    )
+                job.status = "encoding"
+                db.commit()
+            else:
+                meta = await ytdlp_service.get_metadata(job.video_id)
+                duration = meta.get("duration")
+                if not duration:
+                    raise ValueError("video has no fixed duration (likely a live stream) — not supported")
+                if duration > settings.max_job_duration_s:
+                    raise ValueError(
+                        f"video is {duration}s, exceeds {settings.max_job_duration_s}s limit"
+                    )
 
-            job.status = "downloading"
-            job.title = meta.get("title") or job.video_id
-            db.commit()
+                job.status = "downloading"
+                job.title = meta.get("title") or job.video_id
+                db.commit()
 
-            result = await ytdlp_service.download(job.video_id, out_dir)
-            job.title = result.title
-            job.status = "encoding"
-            db.commit()
+                result = await ytdlp_service.download(job.video_id, out_dir)
+                job.title = result.title
+                job.status = "encoding"
+                db.commit()
+                source_path = result.source_path
 
             mp3_path = os.path.join(out_dir, "audio.mp3")
             mjpeg_path = os.path.join(out_dir, "video_high.mjpeg")
             mjpeg_path_low = os.path.join(out_dir, "video_low.mjpeg")
             await asyncio.gather(
-                ffmpeg_service.extract_audio(result.source_path, mp3_path),
+                ffmpeg_service.extract_audio(source_path, mp3_path),
                 ffmpeg_service.extract_mjpeg(
-                    result.source_path, mjpeg_path, fps=job.fps, quality=settings.jpeg_q
+                    source_path, mjpeg_path, fps=job.fps, quality=settings.jpeg_q
                 ),
                 ffmpeg_service.extract_mjpeg(
-                    result.source_path, mjpeg_path_low, fps=job.fps_low, quality=settings.low_jpeg_q
+                    source_path, mjpeg_path_low, fps=job.fps_low, quality=settings.low_jpeg_q
                 ),
             )
 
-            if os.path.exists(result.source_path):
-                os.remove(result.source_path)
+            if os.path.exists(source_path):
+                os.remove(source_path)
 
             job.mp3_path = mp3_path
             job.mjpeg_path = mjpeg_path

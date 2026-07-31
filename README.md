@@ -1,8 +1,9 @@
 # Deskbot
 
 A mini desk gadget built on an ESP32-S3: an animated idle clock, a YouTube
-video player, a to-do list, rotating idle-screen quotes, and a focus/
-Pomodoro timer — all driven from a companion website.
+video player (or your own uploaded videos/photos), a to-do list, rotating
+idle-screen quotes, and a focus/Pomodoro timer — all driven from a
+companion website.
 
 - **`firmware/Deskbot/`** — the ESP32-S3 sketch (idle clock + video playback)
 - **`server/`** — Python/FastAPI backend + the website (search, queue, to-do list)
@@ -70,6 +71,23 @@ until it ends or you stop it early, then returns to idle. It doesn't
 interrupt a video that's already playing, and doesn't itself get
 interrupted by a newly-queued video — that just waits until the session
 ends.
+
+### Uploading your own video or photo
+
+The Home tab's "Upload media" panel lets you play your own video files or
+show a photo, no YouTube involved:
+
+- **Video** goes through the same pipeline as a searched video (encoded
+  into the same dual-tier MJPEG+MP3 format, same "Now Playing"/"Up Next"
+  queue — uploads and searches interleave in the same playlist, badged
+  "Upload" so you can tell them apart) — capped at `MAX_UPLOAD_VIDEO_MB`
+  (default 300MB) and the same `MAX_JOB_DURATION_S` limit as YouTube
+  videos.
+- **Photo** resizes/crops to the device's screen and displays immediately,
+  persisting until you upload another or hit Dismiss — capped at
+  `MAX_UPLOAD_PHOTO_MB` (default 20MB). Doesn't interrupt a playing video
+  or an active focus session; if either is active when you upload a
+  photo, it just waits its turn.
 
 ### WiFi setup
 

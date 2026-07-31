@@ -292,6 +292,73 @@ $('#search-form').addEventListener('submit', async (e) => {
   }
 });
 
+// ── Media upload ─────────────────────────────────────────────────────
+
+function setUploadStatus(state, message) {
+  const el = $('#upload-status');
+  el.dataset.state = state;
+  el.textContent = message;
+  el.classList.remove('hidden');
+  if (state !== 'busy') {
+    setTimeout(() => el.classList.add('hidden'), 4000);
+  }
+}
+
+$('#upload-video-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = ''; // allow re-selecting the same file later
+  if (!file) return;
+  setUploadStatus('busy', `Uploading ${file.name}…`);
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const res = await api('/api/upload/video', { method: 'POST', body: form });
+    if (res.status === 409) {
+      setUploadStatus('error', 'Queue is full — try again once something finishes.');
+      return;
+    }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setUploadStatus('error', data.detail || 'Upload failed.');
+      return;
+    }
+    setUploadStatus('ok', `${file.name} queued.`);
+    pollNowPlaying();
+  } catch {
+    setUploadStatus('error', 'Upload failed — check your connection.');
+  }
+});
+
+$('#upload-photo-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  setUploadStatus('busy', `Uploading ${file.name}…`);
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const res = await api('/api/upload/photo', { method: 'POST', body: form });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setUploadStatus('error', data.detail || 'Upload failed.');
+      return;
+    }
+    setUploadStatus('ok', `${file.name} showing on desk unit.`);
+    pollFocus(); // photo_active/photo_id ride the same /api/settings poll
+  } catch {
+    setUploadStatus('error', 'Upload failed — check your connection.');
+  }
+});
+
+$('#photo-dismiss').addEventListener('click', async () => {
+  try {
+    await api('/api/photos/current/clear', { method: 'POST' });
+  } catch {
+    // ignore, next poll resyncs
+  }
+  pollFocus();
+});
+
 $('#results').addEventListener('click', async (e) => {
   const btn = e.target.closest('.play-btn');
   if (!btn) return;
@@ -345,6 +412,7 @@ function renderUpNext(jobs) {
   el.innerHTML = jobs.map((j) => `
     <div class="up-next-row">
       <span class="status-pill" data-status="${j.status}">${STATUS_LABELS[j.status] || j.status}</span>
+      ${j.source_type === 'upload' ? '<span class="source-badge">Upload</span>' : ''}
       <span class="up-next-title">${escapeHtml(j.title || 'Loading title…')}</span>
       <button type="button" class="mini-btn" data-action="cancel" data-job-id="${j.job_id}">Cancel</button>
     </div>
@@ -369,6 +437,7 @@ async function pollNowPlaying() {
       .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
     const pill = $('#now-status');
+    const badge = $('#now-badge');
     const title = $('#now-title');
     const actions = $('#now-actions');
     const job = active[0] || jobs[0];
@@ -376,6 +445,7 @@ async function pollNowPlaying() {
       currentJobId = null;
       pill.dataset.status = 'idle';
       pill.textContent = 'Idle';
+      badge.classList.add('hidden');
       title.textContent = 'Nothing queued';
       title.classList.add('muted');
       actions.innerHTML = '';
@@ -383,6 +453,7 @@ async function pollNowPlaying() {
       currentJobId = job.job_id;
       pill.dataset.status = job.status;
       pill.textContent = STATUS_LABELS[job.status] || job.status;
+      badge.classList.toggle('hidden', job.source_type !== 'upload');
       title.textContent = job.status === 'error'
         ? (job.error_message || 'Something went wrong')
         : (job.title || 'Loading title…');
@@ -542,6 +613,10 @@ async function pollFocus() {
       idleEl.classList.remove('hidden');
       activeEl.classList.add('hidden');
     }
+    // Piggybacks on the same /api/settings fetch above rather than a
+    // separate poll — photo_active/photo_id live in Settings the same
+    // way focus_active does.
+    $('#photo-active-row').classList.toggle('hidden', !data.photo_active);
   } catch {
     // transient network hiccup, next poll will retry
   }

@@ -33,6 +33,11 @@
 // "playing" (a website cancel flips this) so a cancel stops the screen
 // within a few seconds instead of only when the video naturally ends.
 #define VIDEO_CANCEL_CHECK_MS 3000
+// A single 320x240 JPEG at extract_still's quality (server/app/services/
+// ffmpeg_service.py) is tens of KB — nowhere near MJPEG_BUF_SIZE above, so
+// photo_view.cpp gets its own much smaller buffer rather than reusing
+// video_player.cpp's.
+#define PHOTO_BUF_SIZE       (128 * 1024)
 
 #define JOB_POLL_INTERVAL_MS          5000
 #define DEVICE_STATE_POLL_INTERVAL_MS 45000

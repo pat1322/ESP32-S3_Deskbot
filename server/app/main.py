@@ -7,7 +7,7 @@ from starlette.staticfiles import StaticFiles
 
 from .config import settings
 from .db import sync_schema
-from .routers import device, queue, quotes, search, settings as settings_router, todos, video, web
+from .routers import device, photo, queue, quotes, search, settings as settings_router, todos, upload, video, web
 from .services import cleanup, job_worker
 
 
@@ -35,6 +35,8 @@ app.add_middleware(
 )
 
 app.include_router(video.router)
+app.include_router(photo.router)
+app.include_router(upload.router)
 app.include_router(todos.router)
 app.include_router(quotes.router)
 app.include_router(search.router)

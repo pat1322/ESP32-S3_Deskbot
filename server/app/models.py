@@ -10,6 +10,12 @@ from .db import Base
 #                                                    \-> error
 JOB_ACTIVE_STATUSES = ("queued", "downloading", "encoding", "ready", "playing")
 
+# Multiple videos (from search or upload) can be queued at once —
+# services/job_worker.py's worker loop already processes them strictly
+# FIFO, one at a time — this is just a sanity cap so the queue can't grow
+# unbounded. Shared by routers/queue.py and routers/upload.py.
+MAX_QUEUE_DEPTH = 10
+
 BG_THEMES = ("drift", "starfield", "minimal")
 ORIENTATIONS = ("landscape", "portrait")
 SETTINGS_ID = 1
@@ -19,7 +25,10 @@ class Job(Base):
     __tablename__ = "jobs"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    video_id: Mapped[str] = mapped_column(String(32))
+    # Null for source_type="upload" (there's no YouTube ID) — only ever
+    # required for "youtube" jobs.
+    video_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    source_type: Mapped[str] = mapped_column(String(16), default="youtube")  # youtube|upload
     title: Mapped[str | None] = mapped_column(String(256), nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="queued")
     error_message: Mapped[str | None] = mapped_column(String(512), nullable=True)
@@ -62,6 +71,12 @@ class Settings(Base):
     focus_end_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     focus_label: Mapped[str] = mapped_column(String(32), default="Focus")
 
+    # Photo display: the one currently-shown Photo, if any. Nullable with
+    # no default needed (unlike focus_active/orientation above) — None is
+    # already the correct "nothing showing" value, so this column doesn't
+    # need the read-time coalesce those two do on an upgraded row.
+    current_photo_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     @property
@@ -74,6 +89,14 @@ class Settings(Base):
         remaining = (self.focus_end_at - datetime.utcnow()).total_seconds()
         return max(0, int(remaining))
 
+    @property
+    def photo_active(self) -> bool:
+        return self.current_photo_id is not None
+
+    @property
+    def photo_id(self) -> str | None:
+        return self.current_photo_id
+
 
 class Todo(Base):
     __tablename__ = "todos"
@@ -84,6 +107,20 @@ class Todo(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Photo(Base):
+    """An uploaded still image, resized/cropped to device resolution.
+    Settings.current_photo_id points at whichever one (if any) is the
+    device's currently-shown photo — there's no queue/history semantics
+    here, just a single active pointer, same shape as the focus timer."""
+
+    __tablename__ = "photos"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    path: Mapped[str] = mapped_column(String(512))
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class Quote(Base):

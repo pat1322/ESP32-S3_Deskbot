@@ -41,6 +41,8 @@ def device_state(db: Session = Depends(get_db)):
         focus_active=settings.focus_active,
         focus_seconds_remaining=settings.focus_seconds_remaining,
         focus_label=settings.focus_label,
+        photo_active=settings.photo_active,
+        photo_id=settings.photo_id,
         pending_wifi_ssid=settings.pending_wifi_ssid if applying else None,
         pending_wifi_password=settings.pending_wifi_password if applying else None,
     )

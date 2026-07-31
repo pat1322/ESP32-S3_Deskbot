@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     # Search
     search_result_limit: int = 12
 
+    # Upload limits (routers/upload.py) — enforced by counting bytes as
+    # the upload streams to disk, not by trusting the Content-Length
+    # header. Photos get their own much smaller cap since the resized
+    # output is tiny regardless of input size.
+    max_upload_video_mb: int = 300
+    max_upload_photo_mb: int = 20
+
     # Full contents of a Netscape-format cookies.txt exported from a real,
     # logged-in YouTube browser session. Optional, but YouTube frequently
     # bot-checks and rejects requests from datacenter IPs (like Railway's)

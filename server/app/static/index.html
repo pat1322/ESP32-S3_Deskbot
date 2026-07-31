@@ -44,9 +44,30 @@
         </section>
 
         <section class="panel">
+          <h2>Upload media</h2>
+          <div class="upload-row">
+            <label class="upload-btn" for="upload-video-input">
+              Upload video
+              <input type="file" id="upload-video-input" accept="video/*" class="hidden">
+            </label>
+            <label class="upload-btn" for="upload-photo-input">
+              Upload photo
+              <input type="file" id="upload-photo-input" accept="image/*" class="hidden">
+            </label>
+          </div>
+          <div id="upload-status" class="upload-status hidden"></div>
+          <div class="now-playing-row photo-active-row hidden" id="photo-active-row">
+            <span class="status-pill" data-status="ready">Photo</span>
+            <span class="now-playing-title">Now showing on desk unit</span>
+            <button type="button" class="mini-btn" data-action="cancel" id="photo-dismiss">Dismiss</button>
+          </div>
+        </section>
+
+        <section class="panel">
           <h2>Now playing</h2>
           <div class="now-playing-row">
             <span class="status-pill" id="now-status" data-status="idle">Idle</span>
+            <span class="source-badge hidden" id="now-badge">Upload</span>
             <span class="now-playing-title muted" id="now-title">Nothing queued</span>
             <div class="now-playing-actions" id="now-actions"></div>
           </div>

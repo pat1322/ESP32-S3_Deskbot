@@ -26,6 +26,7 @@ class JobOut(BaseModel):
     status: str
     title: str | None = None
     error_message: str | None = None
+    source_type: str = "youtube"
     created_at: datetime
 
     class Config:
@@ -35,6 +36,11 @@ class JobOut(BaseModel):
 class CurrentJobOut(BaseModel):
     ready: bool
     job_id: str | None = None
+
+
+class CurrentPhotoOut(BaseModel):
+    ready: bool
+    photo_id: str | None = None
 
 
 class VideoDoneIn(BaseModel):
@@ -84,6 +90,8 @@ class SettingsOut(BaseModel):
     focus_active: bool
     focus_seconds_remaining: int
     focus_label: str
+    photo_active: bool = False
+    photo_id: str | None = None
 
     class Config:
         from_attributes = True
@@ -154,6 +162,8 @@ class DeviceStateOut(BaseModel):
     focus_active: bool = False
     focus_seconds_remaining: int = 0
     focus_label: str = "Focus"
+    photo_active: bool = False
+    photo_id: str | None = None
     pending_wifi_ssid: str | None = None
     pending_wifi_password: str | None = None
 

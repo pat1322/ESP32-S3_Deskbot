@@ -266,6 +266,47 @@ main.col-main { min-width: 0; }
 }
 .search-row button:hover { box-shadow: 0 0 20px rgba(95, 225, 217, 0.3); }
 
+/* ── Upload media ──────────────────────────────────────────────── */
+
+.upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.upload-btn:hover { background: var(--cyan); color: #06211f; box-shadow: 0 0 18px rgba(95, 225, 217, 0.3); }
+
+.upload-status {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.upload-status[data-state="error"] { color: var(--danger); }
+.upload-status[data-state="ok"] { color: var(--amber); }
+
+.source-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 7px;
+  flex-shrink: 0;
+}
+
 /* ── Now playing ───────────────────────────────────────────────── */
 
 .now-playing-row {

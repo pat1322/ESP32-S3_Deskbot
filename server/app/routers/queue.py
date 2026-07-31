@@ -6,16 +6,11 @@ from sqlalchemy.orm import Session
 from ..auth import require_web_session
 from ..config import settings
 from ..db import get_db
-from ..models import JOB_ACTIVE_STATUSES, Job
+from ..models import JOB_ACTIVE_STATUSES, MAX_QUEUE_DEPTH, Job
 from ..schemas import JobOut, QueueRequest
 from ..services import job_worker
 
 router = APIRouter(tags=["queue"], dependencies=[Depends(require_web_session)])
-
-# Multiple videos can be queued at once (services/job_worker.py's worker
-# loop already processes them strictly FIFO, one at a time) — this is just
-# a sanity cap so the queue can't grow unbounded.
-MAX_QUEUE_DEPTH = 10
 
 
 def _to_out(job: Job) -> JobOut:
@@ -24,6 +19,11 @@ def _to_out(job: Job) -> JobOut:
         status=job.status,
         title=job.title,
         error_message=job.error_message,
+        # source_type is nullable at the DB level (added to an
+        # already-existing table — see CLAUDE.md) even though it's
+        # non-Optional here, so coalesce an old NULL row to its intended
+        # default rather than failing response validation.
+        source_type=job.source_type or "youtube",
         created_at=job.created_at,
     )
 

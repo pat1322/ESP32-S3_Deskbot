@@ -34,6 +34,8 @@ struct DeviceState {
     bool   focusActive = false;
     int    focusSecondsRemaining = 0;
     String focusLabel = "Focus";
+    bool   photoActive = false;
+    String photoId;
     String pendingWifiSsid;
     String pendingWifiPassword;
 };

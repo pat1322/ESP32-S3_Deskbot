@@ -10,6 +10,7 @@
 #include "src/video_player.h"
 #include "src/idle_screen.h"
 #include "src/focus_timer.h"
+#include "src/photo_view.h"
 #include "src/state_machine.h"
 #include "src/wifi_store.h"
 #include "src/wifi_portal.h"
@@ -19,6 +20,7 @@ static uint32_t lastJobPollMs     = 0;
 static uint32_t lastDeviceStateMs = 0;
 static uint32_t lastLogFlushMs    = 0;
 static int      wifiFailCount     = 0;
+static String   lastShownPhotoId  = "";
 
 // ~40s of retrying (8s timeout x 5) before offering on-device setup mode —
 // long enough to ride out a router reboot, short enough not to strand the
@@ -112,15 +114,28 @@ static void handleDeviceStatePoll() {
     idleScreenSetQuote(state.quote);
     setDeviceVolume(state.volume);
 
-    // Focus mode takes priority over the idle screen but doesn't interrupt
-    // video playback (handleDeviceStatePoll only ever runs from IDLE/
-    // FOCUS_TIMER, never VIDEO_PLAYING) and itself isn't interrupted by a
-    // queued video — handleVideoJobIfAny() simply isn't called while in
-    // FOCUS_TIMER, so a queued job just waits until the session ends.
+    // Focus mode and photo display both take priority over the idle
+    // screen but don't interrupt video playback (handleDeviceStatePoll
+    // only ever runs from IDLE/FOCUS_TIMER/PHOTO_VIEW, never
+    // VIDEO_PLAYING) and aren't interrupted by a queued video —
+    // handleVideoJobIfAny() simply isn't called from either, so a queued
+    // job just waits until the session/photo ends. Focus takes priority
+    // over a photo if both happen to be active at once (arbitrary but
+    // consistent tie-break — matches how a queued video already waits
+    // out a focus session rather than the reverse). Checked once up
+    // front (rather than repeated g_appState == AppState::X comparisons
+    // after transitionTo() calls have already changed it) so "focus just
+    // became active while a photo was showing" correctly switches straight
+    // to FOCUS_TIMER instead of silently updating state nothing displays.
+    bool wasInFocus = (g_appState == AppState::FOCUS_TIMER);
+    bool wasInPhoto = (g_appState == AppState::PHOTO_VIEW);
+    bool wasIdle    = (g_appState == AppState::IDLE);
+
     if (state.focusActive) {
-        if (g_appState == AppState::IDLE) {
+        if (!wasInFocus) {
             transitionTo(AppState::FOCUS_TIMER);
             focusTimerEnter(state.focusLabel);
+            lastShownPhotoId = "";
         } else if (orientationChanged) {
             // Still in FOCUS_TIMER — re-run Enter() so cached layout
             // state (and tft.width()/height()-dependent drawing) resets
@@ -128,9 +143,21 @@ static void handleDeviceStatePoll() {
             focusTimerEnter(state.focusLabel);
         }
         focusTimerSetRemaining(state.focusSecondsRemaining);
-    } else if (g_appState == AppState::FOCUS_TIMER) {
+    } else if (wasInFocus) {
         transitionTo(AppState::IDLE); // already calls idleScreenEnter()
-    } else if (orientationChanged && g_appState == AppState::IDLE) {
+    } else if (state.photoActive) {
+        if (!wasInPhoto) {
+            transitionTo(AppState::PHOTO_VIEW);
+            photoViewEnter(state.photoId);
+            lastShownPhotoId = state.photoId;
+        } else if (state.photoId != lastShownPhotoId || orientationChanged) {
+            photoViewEnter(state.photoId);
+            lastShownPhotoId = state.photoId;
+        }
+    } else if (wasInPhoto) {
+        transitionTo(AppState::IDLE); // already calls idleScreenEnter()
+        lastShownPhotoId = "";
+    } else if (orientationChanged && wasIdle) {
         idleScreenEnter();
     }
 
@@ -233,6 +260,21 @@ void loop() {
                 transitionTo(AppState::IDLE);
                 break;
             }
+
+            uint32_t now = millis();
+            if (now - lastDeviceStateMs >= DEVICE_STATE_POLL_INTERVAL_MS) {
+                lastDeviceStateMs = now;
+                handleDeviceStatePoll();
+            }
+            if (now - lastLogFlushMs >= 5000) {
+                lastLogFlushMs = now;
+                remoteLogFlush();
+            }
+            break;
+        }
+
+        case AppState::PHOTO_VIEW: {
+            photoViewTick();
 
             uint32_t now = millis();
             if (now - lastDeviceStateMs >= DEVICE_STATE_POLL_INTERVAL_MS) {

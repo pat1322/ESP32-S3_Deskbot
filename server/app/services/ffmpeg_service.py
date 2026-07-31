@@ -1,8 +1,12 @@
 import asyncio
+import re
 
 
 class FfmpegError(RuntimeError):
     pass
+
+
+_DURATION_RE = re.compile(r"Duration:\s*(\d+):(\d+):(\d+\.\d+)")
 
 
 async def _run(*args: str) -> None:
@@ -31,6 +35,49 @@ async def extract_audio(source_path: str, mp3_path: str) -> None:
         "-ar", "44100",
         "-b:a", "96k",
         mp3_path,
+    )
+
+
+async def probe_duration(source_path: str) -> float:
+    """Duration in seconds, for uploaded files that don't come with yt-dlp
+    metadata. Parses ffmpeg's own stderr banner rather than shelling out to
+    a separate ffprobe binary — `ffmpeg -i <file>` with no output always
+    exits non-zero, but prints `Duration: HH:MM:SS.ms` to stderr before it
+    does, so we read that instead of treating the exit code as success.
+    """
+    proc = await asyncio.create_subprocess_exec(
+        "ffmpeg", "-i", source_path,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    _, stderr = await proc.communicate()
+    text = stderr.decode(errors="replace")
+    match = _DURATION_RE.search(text)
+    if not match:
+        raise FfmpegError(f"could not determine duration: {text[-500:]}")
+    hours, minutes, seconds = match.groups()
+    return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+
+
+async def extract_still(
+    source_path: str,
+    jpeg_path: str,
+    quality: int = 5,
+    width: int = 320,
+    height: int = 240,
+) -> None:
+    # Same crop-to-fill scaling as extract_mjpeg, one frame instead of a
+    # stream. Lower default quality number (better) than extract_mjpeg's --
+    # a single still's file size doesn't need to stay small for
+    # streaming/decode-speed reasons the way a continuous fps stream does.
+    vf = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
+    await _run(
+        "ffmpeg", "-y",
+        "-i", source_path,
+        "-vframes", "1",
+        "-vf", vf,
+        "-q:v", str(quality),
+        jpeg_path,
     )
 
 

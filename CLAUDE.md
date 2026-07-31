@@ -89,6 +89,37 @@ polling: `playVideo()`'s decode loop calls `GET /video/status/{id}` every
 `VIDEO_CANCEL_CHECK_MS` (`pins.h`) and stops within a few seconds once the
 status is no longer `"playing"`.
 
+**Uploaded video shares this whole pipeline.** `routers/upload.py`'s
+`POST /api/upload/video` creates a `Job` with `source_type="upload"` and
+saves the file straight to `source_path` before enqueueing — no `yt-dlp`
+involved. `process_job()` branches at the top on `source_type`: the
+upload path skips `ytdlp_service.get_metadata()`/`.download()` entirely
+and instead calls `ffmpeg_service.probe_duration()` (parses `ffmpeg -i`'s
+own stderr banner rather than depending on a separate `ffprobe` binary)
+for the same `max_job_duration_s` check the YouTube path does, then both
+paths converge on the exact same `asyncio.gather(extract_audio,
+extract_mjpeg x2)` encode step. Upload size is enforced by counting bytes
+as the file streams to disk (`routers/upload.py`'s `_save_upload()`), not
+by trusting the client-supplied `Content-Length` header.
+
+**Uploaded photos are deliberately *not* part of this pipeline.** A photo
+has no audio, no fps, no encode step, and persists on screen instead of
+playing through once — trying to force it through the `Job` state machine
+would mean meaningless fields (`fps`, `mp3_path`, ...) on every photo row.
+Instead it's a separate, much smaller concept modeled after the focus
+timer: a single `Photo` row + `Settings.current_photo_id` pointer (not a
+queue — uploading a new photo replaces the current one, deleting its
+file), surfaced through `/device/state` as `photo_active`/`photo_id`
+exactly like `focus_active`, and entered/exited from `AppState::IDLE`
+in `Deskbot.ino`'s `handleDeviceStatePoll()` the same way
+`AppState::FOCUS_TIMER` is — doesn't interrupt a playing video or an
+active focus session, isn't interrupted by either either.
+`routers/photo.py`'s `GET /photo/stream/{id}.jpg` uses `FileResponse`
+(not a hand-rolled `StreamingResponse`) specifically to avoid
+re-introducing the chunked-transfer-encoding bug the video/audio streams
+in `routers/video.py` once had — sizes are already known on disk, so
+there's no reason to risk it.
+
 **Dual-tier encoding**: every job produces *two* MJPEG files at encode
 time — `mjpeg_path` ("high", `settings.default_fps`/`jpeg_q`) and
 `mjpeg_path_low` ("low", `settings.low_fps`/`low_jpeg_q`) — generated in

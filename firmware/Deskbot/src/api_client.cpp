@@ -90,11 +90,12 @@ bool getDeviceState(DeviceState& out) {
     String resp = http.getString();
     http.end();
 
-    // Bumped from <512>: with a quote (up to 64 chars) added on top of the
-    // existing next_task (up to 256) and wifi fields, 512 was already
-    // tight enough that undersized buffers have silently failed to parse
-    // before (see getJobTitle's/getDeviceState's history).
-    StaticJsonDocument<768> doc;
+    // Bumped from <768>: a photo_id (UUID, up to 36 chars) added on top of
+    // everything else pushed close enough to the previous size that this
+    // buffer has a real history of silently failing to parse when too
+    // tight (see getJobTitle's/getDeviceState's history) — bump ahead of
+    // that rather than after it bites again.
+    StaticJsonDocument<896> doc;
     if (deserializeJson(doc, resp) != DeserializationError::Ok) return false;
     out.pendingCount = doc["pending_count"] | 0;
     out.nextTask = doc["next_task"] | "";
@@ -105,6 +106,8 @@ bool getDeviceState(DeviceState& out) {
     out.focusActive = doc["focus_active"] | false;
     out.focusSecondsRemaining = doc["focus_seconds_remaining"] | 0;
     out.focusLabel = doc["focus_label"] | "Focus";
+    out.photoActive = doc["photo_active"] | false;
+    out.photoId = doc["photo_id"] | "";
     out.pendingWifiSsid = doc["pending_wifi_ssid"] | "";
     out.pendingWifiPassword = doc["pending_wifi_password"] | "";
     return true;

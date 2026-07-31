@@ -33,5 +33,9 @@ void transitionTo(AppState newState) {
             // same reasoning as VIDEO_STARTING above — it has the label
             // in hand from the poll response, this switch doesn't.
             break;
+        case AppState::PHOTO_VIEW:
+            // caller (Deskbot.ino) calls photoViewEnter(photoId) itself,
+            // same reasoning as FOCUS_TIMER above.
+            break;
     }
 }
