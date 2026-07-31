@@ -96,15 +96,25 @@ void photoViewEnter(const String& photoId) {
     if (jpeg.openRAM(photoBuf, got, jpegDrawCallback)) {
         // Same center-crop math as video_player.cpp's frame draw — a
         // negative origin here is intentional (see CLAUDE.md).
-        jpeg.decode(
-            (tft.width()  - jpeg.getWidth())  / 2,
-            (tft.height() - jpeg.getHeight()) / 2,
-            0
-        );
+        // decode()'s return is checked (openRAM() succeeding only means the
+        // headers parsed) -- a format the header parser accepts but the
+        // decoder itself can't handle (e.g. unsupported chroma
+        // subsampling) previously fell through to "displayed" here despite
+        // the screen having no image on it, leaving a black screen with no
+        // visible error and nothing but a misleading log line to debug it.
+        if (jpeg.decode(
+                (tft.width()  - jpeg.getWidth())  / 2,
+                (tft.height() - jpeg.getHeight()) / 2,
+                0
+            )) {
+            remoteLog("[Photo] displayed (%d bytes)", got);
+        } else {
+            remoteLog("[Photo] JPEG decode() failed");
+            showScreen("Photo Error", "Decode failed");
+        }
         jpeg.close();
-        remoteLog("[Photo] displayed (%d bytes)", got);
     } else {
-        remoteLog("[Photo] JPEG decode failed");
+        remoteLog("[Photo] JPEG openRAM failed");
         showScreen("Photo Error", "Decode failed");
     }
     remoteLogFlush();

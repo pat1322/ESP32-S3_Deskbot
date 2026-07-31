@@ -135,7 +135,20 @@ separate backend path for it.
 call that resizes/crops — no extra dependency). `"anime"` is a real
 image-to-image model, `server/app/data/face_paint_512_v2.onnx`
 (`services/anime_service.py`), run via `onnxruntime` on CPU before the
-same resize/crop step. Two things worth knowing if you ever touch this:
+same resize/crop step. `extract_still()` always forces `-pix_fmt
+yuvj420p` on its ffmpeg output — without it, `"bw"`'s `format=gray` and
+`"cinematic"`'s `eq`/`colorbalance` filters (which do their color math at
+full chroma resolution) leave the filtergraph in a non-subsampled 4:4:4
+state that the mjpeg encoder then preserves, while `"none"`/`"anime"`
+naturally inherit standard 4:2:0 from the source photo (real camera
+JPEGs) or anime's own PIL-written intermediate (PIL defaults to 4:2:0).
+The device's `JPEGDEC` library doesn't decode 4:4:4 — it renders a black
+screen, not an error, because `photo_view.cpp`'s `jpeg.decode()` call
+used to go unchecked (`openRAM()` succeeding only means the headers
+parsed; that's now fixed to check `decode()`'s own return too). Don't
+drop the explicit `-pix_fmt` — any future filter that touches chroma at
+full resolution will hit the same silent-black-screen failure otherwise.
+Two more things worth knowing if you ever touch this:
 
 - **Where the model came from.** [bryandlee/animegan2-pytorch](https://github.com/bryandlee/animegan2-pytorch)'s
   `face_paint_512_v2` checkpoint (trained on face crops — works better on

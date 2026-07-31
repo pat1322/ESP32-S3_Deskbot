@@ -106,6 +106,20 @@ async def extract_still(
         "-i", source_path,
         "-vframes", "1",
         "-vf", vf,
+        # Force standard 4:2:0 chroma subsampling on the output, always --
+        # without this, ffmpeg's mjpeg encoder just mirrors whatever the
+        # filtergraph's final pixel format happens to be, which follows the
+        # SOURCE photo's own subsampling when there's no vf_extra (almost
+        # universally 4:2:0 for real camera/phone JPEGs and for anime's own
+        # PIL-written intermediate), but "bw"'s format=gray and
+        # "cinematic"'s eq/colorbalance filters do their color math at full
+        # chroma resolution and leave the graph in a non-subsampled 4:4:4
+        # state, which the encoder then preserves. The device's JPEGDEC
+        # library doesn't decode 4:4:4 JPEGs -- it fails silently (its
+        # return value goes unchecked in photo_view.cpp, which is also
+        # fixed separately) rather than erroring, which is why bw/cinematic
+        # photos rendered as a black screen instead of a "Photo Error".
+        "-pix_fmt", "yuvj420p",
         "-q:v", str(quality),
         jpeg_path,
     )
