@@ -74,7 +74,17 @@ def stream_mjpeg(job_id: str, tier: str = "high", db: Session = Depends(get_db))
         yield bytes([fps])
         yield from _file_chunks(path)
 
-    return StreamingResponse(generate(), media_type="video/x-motion-jpeg")
+    # The ESP32 firmware reads this stream's raw bytes directly via
+    # HTTPClient::getStreamPtr() (video_player.cpp), which does NOT decode
+    # chunked transfer-encoding — without an explicit Content-Length here,
+    # uvicorn falls back to chunked framing and the firmware ends up reading
+    # literal chunk-size/CRLF bytes as if they were stream payload.
+    content_length = 1 + os.path.getsize(path)
+    return StreamingResponse(
+        generate(),
+        media_type="video/x-motion-jpeg",
+        headers={"Content-Length": str(content_length)},
+    )
 
 
 @router.get("/video/stream/{job_id}.mp3")
@@ -83,4 +93,12 @@ def stream_mp3(job_id: str, db: Session = Depends(get_db)):
     if job is None or not job.mp3_path or not os.path.exists(job.mp3_path):
         raise HTTPException(status_code=404, detail="stream not available")
 
-    return StreamingResponse(_file_chunks(job.mp3_path), media_type="audio/mpeg")
+    # Same reasoning as stream_mjpeg above: the firmware's audio task reads
+    # this stream's raw bytes directly too, so it needs identity framing,
+    # not chunked.
+    content_length = os.path.getsize(job.mp3_path)
+    return StreamingResponse(
+        _file_chunks(job.mp3_path),
+        media_type="audio/mpeg",
+        headers={"Content-Length": str(content_length)},
+    )
