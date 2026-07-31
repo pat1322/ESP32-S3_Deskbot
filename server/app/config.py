@@ -41,5 +41,11 @@ class Settings(BaseSettings):
     # Search
     search_result_limit: int = 12
 
+    # Full contents of a Netscape-format cookies.txt exported from a real,
+    # logged-in YouTube browser session. Optional, but YouTube frequently
+    # bot-checks and rejects requests from datacenter IPs (like Railway's)
+    # without it ("Sign in to confirm you're not a bot"). See README.
+    ytdlp_cookies: str | None = None
+
 
 settings = Settings()

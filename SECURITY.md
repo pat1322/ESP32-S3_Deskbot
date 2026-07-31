@@ -42,6 +42,11 @@ overlooked bugs:
   the backend, trading certificate pinning/validation for simplicity on
   constrained hardware. Traffic is still encrypted in transit; it's just
   not validating the server's identity against a CA chain.
+- **`YTDLP_COOKIES` holds a real YouTube session.** If you configure this
+  (see `.env.example`) to work around YouTube's bot-checks on datacenter
+  IPs, use a secondary/throwaway Google account rather than your primary
+  one — the cookies grant whatever that account can access on youtube.com,
+  and automated `yt-dlp` usage risks that account getting flagged.
 
 ## Supported versions
 

@@ -135,6 +135,10 @@ scratch space that gets cleaned up automatically after each job is consumed.
   bound worst-case CPU/disk use on a small Railway instance.
 - `yt-dlp` occasionally breaks when YouTube changes things; if search/queue
   starts failing, try bumping the `yt-dlp` version in `requirements.txt`.
+- If a queued video's error message says something like *"Sign in to
+  confirm you're not a bot"*, that's YouTube bot-checking Railway's
+  datacenter IP rather than an app bug — set `YTDLP_COOKIES` (see
+  `.env.example`) to authenticate `yt-dlp` with a real browser session.
 - See [SECURITY.md](SECURITY.md) for the full list of accepted security
   trade-offs (shared-secret auth, the open WiFi setup access point, the
   `yt-dlp` ToS caveat, etc.) — this is a personal single-owner gadget, not a
