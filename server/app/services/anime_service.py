@@ -30,11 +30,24 @@ def _round32(x: int) -> int:
     return 256 if x < 256 else x - x % 32
 
 
+# Caps the longer side fed into the model. Without this, a full-resolution
+# phone photo (comfortably under the 20MB upload cap while still being e.g.
+# 4032x3024) goes straight into the conv net — intermediate activation
+# memory scales with pixel count, and at that resolution it's enough to OOM
+# the whole process. The final output gets downscaled to 320x240 anyway
+# (routers/upload.py's extract_still right after this), so inference never
+# needed more than this to begin with.
+_MAX_DIM = 768
+
+
 def _stylize_sync(source_path: str, dest_path: str) -> None:
     session = _get_session()
     img = Image.open(source_path).convert("RGB")
 
     w, h = img.size
+    if max(w, h) > _MAX_DIM:
+        scale = _MAX_DIM / max(w, h)
+        w, h = round(w * scale), round(h * scale)
     new_w, new_h = _round32(w), _round32(h)
     img = img.resize((new_w, new_h), Image.BICUBIC)
 
