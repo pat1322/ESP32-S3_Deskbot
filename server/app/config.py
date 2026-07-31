@@ -20,13 +20,14 @@ class Settings(BaseSettings):
     # Media scratch space
     media_dir: str = "./media"
 
-    # Video pipeline tuning — favors smooth/reliable playback on the
-    # ESP32-S3's SPI/JPEG-decode budget over image quality. Lower fps and
-    # higher jpeg_q (more compression) both shrink per-frame decode time
-    # and network bandwidth, which is what actually keeps the device from
-    # falling behind and dropping frames.
-    default_fps: int = 12
-    jpeg_q: int = 16
+    # Video pipeline tuning. Lower fps and higher jpeg_q (more compression)
+    # both shrink per-frame decode time and network bandwidth, which is
+    # what keeps the device from falling behind and dropping frames — the
+    # adaptive tier-downgrade logic in firmware/Deskbot/src/video_player.cpp
+    # is the safety net if this "high" tier turns out too heavy for a given
+    # connection.
+    default_fps: int = 24
+    jpeg_q: int = 10
     # "Low" tier: a second, cheaper-to-stream MJPEG encoded alongside the
     # default ("high") one for every job, so the device can fall back to it
     # on a weak/slow connection without re-encoding on demand. Same 320x240
