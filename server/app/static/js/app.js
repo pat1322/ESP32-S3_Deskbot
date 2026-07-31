@@ -295,12 +295,18 @@ let currentJobId = null;
 
 async function pollNowPlaying() {
   try {
-    const res = await api('/api/jobs?active=1');
+    // Unfiltered (not ?active=1): an "error" job isn't in the active-status
+    // list, so filtering to active-only made failures flash back to "Idle"
+    // on the very next poll (2.5s later) before you could ever read why.
+    // Fetching the single most recent job regardless of status keeps a
+    // failure visible until you Retry it or it ages out.
+    const res = await api('/api/jobs');
     const jobs = await res.json();
     const pill = $('#now-status');
     const title = $('#now-title');
     const actions = $('#now-actions');
-    if (jobs.length === 0) {
+    const job = jobs[0];
+    if (!job || job.status === 'done') {
       currentJobId = null;
       pill.dataset.status = 'idle';
       pill.textContent = 'Idle';
@@ -308,7 +314,6 @@ async function pollNowPlaying() {
       title.classList.add('muted');
       actions.innerHTML = '';
     } else {
-      const job = jobs[0];
       currentJobId = job.job_id;
       pill.dataset.status = job.status;
       pill.textContent = STATUS_LABELS[job.status] || job.status;
