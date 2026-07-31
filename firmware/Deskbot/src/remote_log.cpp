@@ -8,10 +8,10 @@
 
 #include "../config.h"
 
-static const int LINE_MAX          = 192;
+static const int LOG_LINE_MAX          = 192;
 static const int MAX_QUEUED_LINES  = 30;
 
-static char queuedLines[MAX_QUEUED_LINES][LINE_MAX];
+static char queuedLines[MAX_QUEUED_LINES][LOG_LINE_MAX];
 static int  queuedCount = 0;
 
 static String serverBase() {
@@ -21,7 +21,7 @@ static String serverBase() {
 }
 
 void remoteLog(const char* fmt, ...) {
-    char buf[LINE_MAX];
+    char buf[LOG_LINE_MAX];
     va_list args;
     va_start(args, fmt);
     vsnprintf(buf, sizeof(buf), fmt, args);
@@ -32,11 +32,11 @@ void remoteLog(const char* fmt, ...) {
     if (queuedCount >= MAX_QUEUED_LINES) {
         // drop the oldest line to make room rather than growing unbounded —
         // the array is contiguous, so this shifts every row down by one.
-        memmove(queuedLines[0], queuedLines[1], (MAX_QUEUED_LINES - 1) * LINE_MAX);
+        memmove(queuedLines[0], queuedLines[1], (MAX_QUEUED_LINES - 1) * LOG_LINE_MAX);
         queuedCount = MAX_QUEUED_LINES - 1;
     }
-    strncpy(queuedLines[queuedCount], buf, LINE_MAX - 1);
-    queuedLines[queuedCount][LINE_MAX - 1] = '\0';
+    strncpy(queuedLines[queuedCount], buf, LOG_LINE_MAX - 1);
+    queuedLines[queuedCount][LOG_LINE_MAX - 1] = '\0';
     queuedCount++;
 }
 
@@ -68,7 +68,7 @@ void remoteLogFlush() {
         // being built and the request completing) would otherwise be lost.
         int remaining = queuedCount - sentCount;
         if (remaining > 0) {
-            memmove(queuedLines[0], queuedLines[sentCount], remaining * LINE_MAX);
+            memmove(queuedLines[0], queuedLines[sentCount], remaining * LOG_LINE_MAX);
         }
         queuedCount = remaining;
     }
