@@ -86,9 +86,21 @@ async def extract_still(
     # stream. Lower default quality number (better) than extract_mjpeg's --
     # a single still's file size doesn't need to stay small for
     # streaming/decode-speed reasons the way a continuous fps stream does.
+    #
+    # Scale/crop down to the target size FIRST, then apply vf_extra (the
+    # "bw"/"cinematic" color grades) on the already-small image -- not the
+    # other way around. A source photo can be a full-resolution phone
+    # upload (up to MAX_UPLOAD_PHOTO_MB, no pixel-dimension cap), and
+    # running a per-pixel filter chain (eq/colorbalance) against that
+    # before downscaling is the exact same class of problem the anime
+    # filter had (see services/anime_service.py's resolution cap, added
+    # to fix a Railway OOM on large uploads) -- wasted work at best,
+    # a resource-constrained-container failure at worst, for a result
+    # that looks identical either way since these are pointwise/local
+    # grades that commute with resizing.
     vf = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
     if vf_extra:
-        vf = f"{vf_extra},{vf}"
+        vf = f"{vf},{vf_extra}"
     await _run(
         "ffmpeg", "-y",
         "-i", source_path,
