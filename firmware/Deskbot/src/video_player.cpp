@@ -176,6 +176,19 @@ static void audioTaskFn(void*) {
         uint32_t audioStartMs = millis();
         uint32_t contentBytes = 0;
 
+        // Set while a resync discard is in progress. While true, chunks
+        // are dropped whole rather than written to the decoder. The bug
+        // this guards against: resuming a write on the very next chunk
+        // after a discard almost never lands on an MP3 frame boundary
+        // (frames are ~144-150 bytes, chunks are read in up-to-2048-byte
+        // increments off the socket) — feeding the Helix decoder a
+        // frame-unaligned bitstream desyncs its parser, which is what
+        // produced the cracking/wrong-pitch audio this fixes. Once caught
+        // up, don't resume writing blindly — scan for the next real frame
+        // sync word first (see below) so the decoder only ever starts on
+        // a valid frame boundary.
+        bool audioResyncing = false;
+
         uint8_t buf[2048];
         while (g_playing) {
             int avail = s->available();
@@ -189,7 +202,29 @@ static void audioTaskFn(void*) {
                         // chunk instead of decoding it, to skip ahead
                         // rather than let the gap grow into audible
                         // lip-sync drift for the rest of the video.
-                        Serial.printf("[Audio] Resyncing, %u ms behind\n", elapsedMs - contentMs);
+                        if (!audioResyncing) {
+                            Serial.printf("[Audio] Resyncing, %u ms behind\n", elapsedMs - contentMs);
+                        }
+                        audioResyncing = true;
+                    } else if (audioResyncing) {
+                        // Just caught up. Find the next MP3 frame sync
+                        // word (0xFF followed by a byte with its top 3
+                        // bits set) in this chunk and only start writing
+                        // from there, discarding any leading partial-frame
+                        // bytes before it — never resume mid-frame.
+                        int syncOffset = -1;
+                        for (int i = 0; i < got - 1; i++) {
+                            if (buf[i] == 0xFF && (buf[i + 1] & 0xE0) == 0xE0) {
+                                syncOffset = i;
+                                break;
+                            }
+                        }
+                        if (syncOffset >= 0) {
+                            g_audioDecoded.write(buf + syncOffset, got - syncOffset);
+                            audioResyncing = false;
+                        }
+                        // else: no sync word in this chunk either, keep
+                        // discarding and try again on the next one.
                     } else {
                         g_audioDecoded.write(buf, got);
                     }
