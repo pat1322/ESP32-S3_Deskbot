@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from ..auth import require_device_or_web
 from ..db import get_db
 from ..models import Todo
-from ..schemas import DeviceStateOut, WifiAckIn
+from ..schemas import DeviceLogOut, DeviceStateOut, WifiAckIn
+from ..services import device_log
 from .settings import get_or_create_settings
 
 router = APIRouter(tags=["device"], dependencies=[Depends(require_device_or_web)])
@@ -33,4 +34,27 @@ def wifi_ack(body: WifiAckIn, db: Session = Depends(get_db)):
     s.pending_wifi_ssid = None
     s.pending_wifi_password = None
     db.commit()
+    return {"ok": True}
+
+
+@router.post("/device/log")
+async def post_device_log(request: Request):
+    # Raw text body (one log line per line), not JSON — avoids needing the
+    # firmware to JSON-escape arbitrary Serial-style output (SSIDs, error
+    # strings, etc.) for what's purely a debugging channel.
+    body = await request.body()
+    text = body.decode("utf-8", errors="replace")
+    lines = text.splitlines()[:50]  # guard against a runaway payload
+    device_log.append(lines)
+    return {"ok": True}
+
+
+@router.get("/api/device/log", response_model=DeviceLogOut)
+def get_device_log():
+    return DeviceLogOut(entries=device_log.recent())
+
+
+@router.post("/api/device/log/clear")
+def clear_device_log():
+    device_log.clear()
     return {"ok": True}

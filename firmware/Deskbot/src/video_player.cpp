@@ -7,6 +7,7 @@
 
 #include "pins.h"
 #include "display.h"
+#include "remote_log.h"
 
 // TFT_eSPI (pulled in by display.h, above) must be included before
 // AudioTools/the audio-driver headers below: the audio-driver library
@@ -121,16 +122,16 @@ static void audioTaskFn(void*) {
 void initVideoSubsystem() {
     if (psramFound()) {
         mjpegBuf = (uint8_t*)ps_malloc(MJPEG_BUF_SIZE);
-        Serial.printf("[Init] PSRAM MJPEG buf: %d KB\n", MJPEG_BUF_SIZE / 1024);
+        remoteLog("[Init] PSRAM MJPEG buf: %d KB", MJPEG_BUF_SIZE / 1024);
     } else {
         mjpegBuf = (uint8_t*)malloc(MJPEG_BUF_SIZE);
-        Serial.println("[Init] No PSRAM — heap");
+        remoteLog("[Init] No PSRAM - heap");
     }
     if (!mjpegBuf) { showScreen("MEM ERROR"); while (1) delay(1000); }
 
     if (psramFound()) {
-        Serial.printf("[Init] PSRAM free/total: %u / %u KB\n",
-                       ESP.getFreePsram() / 1024, ESP.getPsramSize() / 1024);
+        remoteLog("[Init] PSRAM free/total: %u / %u KB",
+                  ESP.getFreePsram() / 1024, ESP.getPsramSize() / 1024);
     }
 
     pinMode(PIN_PA, OUTPUT); digitalWrite(PIN_PA, LOW);
@@ -166,6 +167,7 @@ static void waitForAudioTaskTeardown() {
 
 bool playVideo(const String& jobId, const String& title) {
     g_jobId = jobId;
+    remoteLogFlush(); // clear anything already queued before this potentially-fatal call
 
     showScreen("Buffering...", title.length() > 0 ? title.c_str() : "Opening stream");
 
@@ -184,7 +186,7 @@ bool playVideo(const String& jobId, const String& title) {
         g_audioReady    = false;
         g_startPlayback = false;
 
-        Serial.printf("[Video] Attempt %d, tier=%s\n", attempt, tierName(tier));
+        remoteLog("[Video] Attempt %d, tier=%s", attempt, tierName(tier));
 
         WiFiClientSecure vcli;
         vcli.setInsecure();
@@ -196,9 +198,12 @@ bool playVideo(const String& jobId, const String& title) {
         vhttp.setTimeout(600000);
 
         int code = vhttp.GET();
-        Serial.printf("[Video] HTTP %d\n", code);
+        remoteLog("[Video] HTTP %d", code);
+        remoteLogFlush();
 
         if (code != 200) {
+            remoteLog("[Video] Stream open failed, giving up (HTTP %d)", code);
+            remoteLogFlush();
             showScreen("Stream Error", ("HTTP " + String(code)).c_str());
             g_playing = false;
             vhttp.end();
@@ -211,7 +216,7 @@ bool playVideo(const String& jobId, const String& title) {
         vs->readBytes(&streamFps, 1);
         if (streamFps == 0 || streamFps > 60) streamFps = FALLBACK_FPS;
         const uint32_t frameMs = 1000 / streamFps;
-        Serial.printf("[Video] %u fps  frameMs=%u ms\n", streamFps, frameMs);
+        remoteLog("[Video] %u fps  frameMs=%u ms", streamFps, frameMs);
 
         int bytesInBuf = 0;
         tft.fillScreen(TFT_BLACK);
@@ -235,12 +240,14 @@ bool playVideo(const String& jobId, const String& title) {
         }
         uint32_t prefillMs = max((uint32_t)1, millis() - prefillStartMs);
         float    prefillBps = bytesInBuf * 1000.0f / prefillMs;
-        Serial.printf("[Video] Pre-filled %d bytes in %u ms (%.0f B/s)\n", bytesInBuf, prefillMs, prefillBps);
+        remoteLog("[Video] Pre-filled %d bytes in %u ms (%.0f B/s)", bytesInBuf, prefillMs, prefillBps);
+        remoteLogFlush();
 
         // Weak connection caught before a single frame has been drawn —
         // restart at the low tier now, invisibly to the user.
         if (tier == VideoTier::Tier_High && !usedPrePlaybackCorrection && prefillBps < VIDEO_PREFILL_MIN_BPS_HIGH) {
-            Serial.println("[Video] Prefill throughput too low for high tier, switching to low");
+            remoteLog("[Video] Prefill throughput too low for high tier, switching to low");
+            remoteLogFlush();
             usedPrePlaybackCorrection = true;
             tier = VideoTier::Tier_Low;
             g_playing = false;
@@ -333,8 +340,9 @@ bool playVideo(const String& jobId, const String& title) {
 
                 if (millis() - fpsWindowMs >= 5000) {
                     float skipRatio = fpsFrames > 0 ? (float)discardedFrames / fpsFrames : 0.0f;
-                    Serial.printf("[Video] %.1f fps, %.0f%% skipped (tier=%s)\n",
-                                  fpsFrames / 5.0f, skipRatio * 100, tierName(tier));
+                    remoteLog("[Video] %.1f fps, %.0f%% skipped (tier=%s), free heap=%u",
+                              fpsFrames / 5.0f, skipRatio * 100, tierName(tier), ESP.getFreeHeap());
+                    remoteLogFlush();
                     if (tier == VideoTier::Tier_High && !usedMidStreamDowngrade && skipRatio > VIDEO_SKIP_RATIO_DOWNGRADE) {
                         needsMidStreamDowngrade = true;
                     }
@@ -348,7 +356,7 @@ bool playVideo(const String& jobId, const String& title) {
             } else {
                 if ((!vhttp.connected() && vs->available() == 0) ||
                      (millis() - lastByteMs) > STREAM_STALL_MS) {
-                    Serial.println("[Video] Stream ended");
+                    remoteLog("[Video] Stream ended (frames this attempt: %u)", frameCount);
                     break;
                 }
                 yield();
@@ -359,19 +367,23 @@ bool playVideo(const String& jobId, const String& title) {
         waitForAudioTaskTeardown();
         vhttp.end();
         totalFrameCount += frameCount;
+        remoteLogFlush();
 
         if (needsMidStreamDowngrade) {
-            Serial.println("[Video] Falling behind on high tier, restarting at low");
+            remoteLog("[Video] Falling behind on high tier, restarting at low");
+            remoteLogFlush();
             showScreen("Adjusting...", "Switching to a lower quality stream");
             usedMidStreamDowngrade = true;
             tier = VideoTier::Tier_Low;
             continue;
         }
 
-        Serial.printf("[Video] Done — %u frames\n", totalFrameCount);
+        remoteLog("[Video] Done - %u frames", totalFrameCount);
+        remoteLogFlush();
         return true;
     }
 
-    Serial.printf("[Video] Done — %u frames\n", totalFrameCount);
+    remoteLog("[Video] Done - %u frames", totalFrameCount);
+    remoteLogFlush();
     return true;
 }

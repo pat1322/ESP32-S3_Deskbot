@@ -1,6 +1,7 @@
 #include "config.h"
 
 #include <WiFi.h>
+#include <esp_system.h>
 
 #include "src/pins.h"
 #include "src/display.h"
@@ -11,15 +12,33 @@
 #include "src/state_machine.h"
 #include "src/wifi_store.h"
 #include "src/wifi_portal.h"
+#include "src/remote_log.h"
 
-static uint32_t lastJobPollMs    = 0;
+static uint32_t lastJobPollMs     = 0;
 static uint32_t lastDeviceStateMs = 0;
-static int      wifiFailCount    = 0;
+static uint32_t lastLogFlushMs    = 0;
+static int      wifiFailCount     = 0;
 
 // ~40s of retrying (8s timeout x 5) before offering on-device setup mode —
 // long enough to ride out a router reboot, short enough not to strand the
 // device if it's genuinely lost its network.
 static const int WIFI_FAIL_PORTAL_THRESHOLD = 5;
+
+static const char* resetReasonStr(esp_reset_reason_t r) {
+    switch (r) {
+        case ESP_RST_POWERON:   return "power-on";
+        case ESP_RST_EXT:       return "external reset";
+        case ESP_RST_SW:        return "software reset (ESP.restart)";
+        case ESP_RST_PANIC:     return "PANIC / exception crash";
+        case ESP_RST_INT_WDT:   return "interrupt watchdog timeout";
+        case ESP_RST_TASK_WDT:  return "task watchdog timeout";
+        case ESP_RST_WDT:       return "other watchdog timeout";
+        case ESP_RST_DEEPSLEEP: return "deep sleep wake";
+        case ESP_RST_BROWNOUT:  return "brownout (power dip)";
+        case ESP_RST_SDIO:      return "SDIO reset";
+        default:                return "unknown";
+    }
+}
 
 static void handleVideoJobIfAny() {
     if (WiFi.status() != WL_CONNECTED) { WiFi.reconnect(); return; }
@@ -27,7 +46,8 @@ static void handleVideoJobIfAny() {
     String jobId = checkCurrentJob();
     if (jobId.length() == 0) return;
 
-    Serial.printf("[Poll] Job: %s\n", jobId.c_str());
+    remoteLog("[Poll] Job: %s", jobId.c_str());
+    remoteLogFlush(); // push this now — if playVideo() crashes, we want this on record
     String title = getJobTitle(jobId);
     String shortTitle = title;
     if (shortTitle.length() > 26) shortTitle = shortTitle.substring(0, 23) + "...";
@@ -52,21 +72,23 @@ static void handleVideoJobIfAny() {
 // new network proves it works, so a bad password just falls back to what
 // was already working (and gets reported back to the website either way).
 static void applyPendingWifi(const String& ssid, const String& password) {
-    Serial.printf("[WiFi] Website requested switch to '%s'\n", ssid.c_str());
+    remoteLog("[WiFi] Website requested switch to '%s'", ssid.c_str());
+    remoteLogFlush();
     WiFi.begin(ssid.c_str(), password.c_str());
     uint32_t t0 = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - t0 < 15000) { delay(300); yield(); }
 
     if (WiFi.status() == WL_CONNECTED) {
         wifiStoreSave(ssid, password);
-        Serial.println("[WiFi] Switch succeeded");
+        remoteLog("[WiFi] Switch succeeded");
         postWifiAck("applied");
     } else {
-        Serial.println("[WiFi] Switch failed, reverting");
+        remoteLog("[WiFi] Switch failed, reverting");
         WiFi.disconnect();
         connectWiFi(20000); // back to the still-saved previous network
         postWifiAck("failed"); // sent over the restored connection
     }
+    remoteLogFlush();
 }
 
 static void handleDeviceStatePoll() {
@@ -87,6 +109,10 @@ void setup() {
     Serial.begin(115200);
     delay(400);
 
+    // First thing logged, before anything else can go wrong — this is the
+    // one signal we can't get any other way once the device reboots.
+    remoteLog("[Boot] Reset reason: %s", resetReasonStr(esp_reset_reason()));
+
     displayInit();
     transitionTo(AppState::BOOT);
 
@@ -103,9 +129,10 @@ void setup() {
 
     transitionTo(AppState::WIFI_CONNECT);
     if (connectWiFi()) {
-        Serial.printf("[WiFi] %s\n", WiFi.localIP().toString().c_str());
+        remoteLog("[WiFi] %s", WiFi.localIP().toString().c_str());
         initNTP();
         transitionTo(AppState::IDLE);
+        remoteLogFlush(); // get the boot-reason line (and anything else queued) out immediately
     }
     // else: stay in WIFI_CONNECT, loop() will keep retrying.
 }
@@ -119,12 +146,16 @@ void loop() {
         case AppState::WIFI_CONNECT:
             if (connectWiFi(8000)) {
                 wifiFailCount = 0;
-                Serial.printf("[WiFi] %s\n", WiFi.localIP().toString().c_str());
+                remoteLog("[WiFi] %s", WiFi.localIP().toString().c_str());
                 initNTP();
                 transitionTo(AppState::IDLE);
+                remoteLogFlush();
             } else {
                 wifiFailCount++;
+                remoteLog("[WiFi] Connect attempt %d/%d failed", wifiFailCount, WIFI_FAIL_PORTAL_THRESHOLD);
                 if (wifiFailCount >= WIFI_FAIL_PORTAL_THRESHOLD) {
+                    remoteLog("[WiFi] Opening setup portal after repeated failures");
+                    remoteLogFlush();
                     transitionTo(AppState::WIFI_PORTAL);
                     wifiPortalRun(); // blocking; restarts the chip on any outcome
                 } else {
@@ -148,6 +179,10 @@ void loop() {
             if (now - lastDeviceStateMs >= DEVICE_STATE_POLL_INTERVAL_MS) {
                 lastDeviceStateMs = now;
                 handleDeviceStatePoll();
+            }
+            if (now - lastLogFlushMs >= 5000) {
+                lastLogFlushMs = now;
+                remoteLogFlush();
             }
             break;
         }

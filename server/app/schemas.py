@@ -115,3 +115,12 @@ class DeviceStateOut(BaseModel):
 
 class LoginRequest(BaseModel):
     password: str
+
+
+class DeviceLogEntryOut(BaseModel):
+    ts: str
+    line: str
+
+
+class DeviceLogOut(BaseModel):
+    entries: list[DeviceLogEntryOut]

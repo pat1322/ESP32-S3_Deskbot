@@ -337,6 +337,33 @@ $('#now-actions').addEventListener('click', async (e) => {
   pollNowPlaying();
 });
 
+// ── Device log ───────────────────────────────────────────────────────
+
+async function pollDeviceLog() {
+  try {
+    const res = await api('/api/device/log');
+    const data = await res.json();
+    const el = $('#device-log');
+    const wasAtBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 24;
+    el.textContent = data.entries.length === 0
+      ? 'No log lines yet — the desk unit sends these as it runs.'
+      : data.entries.map((e) => `[${e.ts}] ${e.line}`).join('\n');
+    if (wasAtBottom) el.scrollTop = el.scrollHeight;
+  } catch {
+    // next poll retries
+  }
+}
+
+$('#clear-log').addEventListener('click', async (e) => {
+  e.preventDefault();
+  try {
+    await api('/api/device/log/clear', { method: 'POST' });
+  } catch {
+    // ignore, next poll resyncs
+  }
+  pollDeviceLog();
+});
+
 // ── Todos ────────────────────────────────────────────────────────────
 
 function renderTodos(todos) {
@@ -409,6 +436,8 @@ function boot() {
   loadTodos();
   pollNowPlaying();
   setInterval(pollNowPlaying, 2500);
+  pollDeviceLog();
+  setInterval(pollDeviceLog, 3000);
 }
 
 checkAuth();
