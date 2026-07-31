@@ -32,6 +32,16 @@ static DriverPins    brdPins;
 static AudioBoard    brdDrv(AudioDriverES8311, brdPins);
 static I2SCodecStream i2sCodec(brdDrv);
 
+// Kept global rather than local to audioTaskFn (as it was before) so they're
+// never reconstructed on every playback attempt/restart — a WiFiClientSecure
+// TLS session and the Helix MP3 decoder's internal working buffer are each a
+// few KB of heap, and recreating them fresh on every attempt/downgrade-retry
+// fragments the heap over a long-running session. Mirrors the same pattern
+// already used for the video-side JPEGDEC/I2SCodecStream globals above.
+static WiFiClientSecure   g_audioCli;
+static MP3DecoderHelix    g_audioMp3Dec;
+static EncodedAudioStream g_audioDecoded(&i2sCodec, &g_audioMp3Dec);
+
 static uint8_t* mjpegBuf = nullptr;
 
 static volatile bool g_playing         = false;
@@ -74,17 +84,14 @@ static String serverBase() {
 }
 
 static void audioTaskFn(void*) {
-    MP3DecoderHelix    mp3Dec;
-    EncodedAudioStream decoded(&i2sCodec, &mp3Dec);
-    mp3Dec.begin();
-    decoded.begin();
+    g_audioMp3Dec.begin();
+    g_audioDecoded.begin();
 
-    WiFiClientSecure cli;
-    cli.setInsecure();
-    cli.setConnectionTimeout(15000);
+    g_audioCli.setInsecure();
+    g_audioCli.setConnectionTimeout(15000);
 
     HTTPClient http;
-    http.begin(cli, serverBase() + "/video/stream/" + g_jobId + ".mp3");
+    http.begin(g_audioCli, serverBase() + "/video/stream/" + g_jobId + ".mp3");
     http.addHeader("X-Api-Key", DESKBOT_API_KEY);
     http.setTimeout(600000);
 
@@ -94,14 +101,28 @@ static void audioTaskFn(void*) {
     if (code == 200) {
         WiFiClient* s = http.getStreamPtr();
         g_audioReady = true;
-        while (!g_startPlayback && g_playing) { vTaskDelay(1); }
+
+        // Drain (and discard) audio bytes while video prefills, instead of
+        // leaving the socket completely unread — an unread receive buffer
+        // here can backpressure/stall the server's write for however long
+        // video buffering takes (several seconds), occasionally leaving the
+        // connection in a bad state before playback even starts.
+        uint8_t drainBuf[512];
+        while (!g_startPlayback && g_playing) {
+            int avail = s->available();
+            if (avail > 0) {
+                s->readBytes(drainBuf, min(avail, (int)sizeof(drainBuf)));
+            } else {
+                vTaskDelay(1);
+            }
+        }
 
         uint8_t buf[2048];
         while (g_playing) {
             int avail = s->available();
             if (avail > 0) {
                 int got = s->readBytes(buf, min(avail, (int)sizeof(buf)));
-                if (got > 0) decoded.write(buf, got);
+                if (got > 0) g_audioDecoded.write(buf, got);
             } else {
                 if (!http.connected() && s->available() == 0) break;
                 vTaskDelay(1);
@@ -111,8 +132,9 @@ static void audioTaskFn(void*) {
         g_audioReady = true;
     }
 
-    decoded.end();
+    g_audioDecoded.end();
     http.end();
+    g_audioCli.stop();
     g_playing = false;
     Serial.println("[Audio] Done");
     g_audioTaskRunning = false;
@@ -276,6 +298,16 @@ bool playVideo(const String& jobId, const String& title) {
         int      consecutiveDiscards    = 0;
         bool     needsMidStreamDowngrade = false;
 
+        // Read-position pointer into mjpegBuf, instead of memmove-ing the
+        // whole remaining buffer after every single frame: memmove-per-frame
+        // on a buffer this size costs real per-frame time and was a direct
+        // contributor to the skip/stutter behavior this loop otherwise
+        // fights via the schedule/force-draw logic below. Only compact
+        // (memmove) once readPos has consumed past half of MJPEG_BUF_SIZE,
+        // amortizing that cost across many frames instead of paying it once
+        // per frame.
+        int readPos = 0;
+
         while (g_playing) {
 
             int avail = vs->available();
@@ -289,7 +321,7 @@ bool playVideo(const String& jobId, const String& title) {
             }
 
             int frameStart = -1, frameEnd = -1;
-            for (int i = 0; i < bytesInBuf - 1; i++) {
+            for (int i = readPos; i < bytesInBuf - 1; i++) {
                 if (mjpegBuf[i] != 0xFF) continue;
                 if      (mjpegBuf[i+1] == 0xD8) { frameStart = i; }
                 else if (mjpegBuf[i+1] == 0xD9 && frameStart != -1) { frameEnd = i + 1; break; }
@@ -334,9 +366,15 @@ bool playVideo(const String& jobId, const String& title) {
                     discardedFrames++;
                 }
 
-                int remaining = bytesInBuf - frameEnd - 1;
-                if (remaining > 0) memmove(mjpegBuf, mjpegBuf + frameEnd + 1, remaining);
-                bytesInBuf = max(0, remaining);
+                // Advance past the consumed frame; only compact the buffer
+                // once readPos has eaten past its halfway point.
+                readPos = frameEnd + 1;
+                if (readPos > MJPEG_BUF_SIZE / 2) {
+                    int remaining = bytesInBuf - readPos;
+                    if (remaining > 0) memmove(mjpegBuf, mjpegBuf + readPos, remaining);
+                    bytesInBuf = max(0, remaining);
+                    readPos = 0;
+                }
 
                 if (millis() - fpsWindowMs >= 5000) {
                     float skipRatio = fpsFrames > 0 ? (float)discardedFrames / fpsFrames : 0.0f;
