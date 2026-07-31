@@ -32,6 +32,10 @@ class Job(Base):
     title: Mapped[str | None] = mapped_column(String(256), nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="queued")
     error_message: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    # Website-only pause/resume for a "playing" job (routers/queue.py). Not
+    # a lifecycle status of its own -- orthogonal to `status`, checked by
+    # the firmware alongside its existing mid-playback cancel poll.
+    paused: Mapped[bool] = mapped_column(Boolean, default=False)
 
     source_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     mjpeg_path: Mapped[str | None] = mapped_column(String(512), nullable=True)

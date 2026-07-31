@@ -27,6 +27,7 @@ class JobOut(BaseModel):
     title: str | None = None
     error_message: str | None = None
     source_type: str = "youtube"
+    paused: bool = False
     created_at: datetime
 
     class Config:

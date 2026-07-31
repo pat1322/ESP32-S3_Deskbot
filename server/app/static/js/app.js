@@ -544,9 +544,15 @@ async function pollNowPlaying() {
         ? (job.error_message || 'Something went wrong')
         : (job.title || 'Loading title…');
       title.classList.remove('muted');
+      // Pause/Resume only makes sense once the device is actually
+      // streaming the job (status "playing") -- there's nothing to
+      // pause while it's still queued/downloading/encoding/ready.
+      const pauseBtn = job.status === 'playing'
+        ? `<button type="button" class="mini-btn" data-action="${job.paused ? 'resume' : 'pause'}">${job.paused ? 'Resume' : 'Pause'}</button>`
+        : '';
       actions.innerHTML = job.status === 'error'
         ? '<button type="button" class="mini-btn" data-action="retry">Retry</button>'
-        : '<button type="button" class="mini-btn" data-action="cancel">Cancel</button>';
+        : `${pauseBtn}<button type="button" class="mini-btn" data-action="cancel">Cancel</button>`;
       // Only makes sense to skip forward if something's actually queued
       // behind the current one -- "Next" stops the current job (the queue
       // then naturally advances) rather than being a distinct endpoint.

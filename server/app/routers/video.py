@@ -44,6 +44,9 @@ def status(job_id: str, db: Session = Depends(get_db)):
         status=job.status,
         title=job.title,
         error_message=job.error_message,
+        # Nullable at the DB level (added to an already-existing table —
+        # see CLAUDE.md) even though it's non-Optional here.
+        paused=bool(job.paused),
         created_at=job.created_at,
     )
 

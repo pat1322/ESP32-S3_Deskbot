@@ -19,11 +19,12 @@ def _to_out(job: Job) -> JobOut:
         status=job.status,
         title=job.title,
         error_message=job.error_message,
-        # source_type is nullable at the DB level (added to an
-        # already-existing table — see CLAUDE.md) even though it's
+        # source_type/paused are nullable at the DB level (added to an
+        # already-existing table — see CLAUDE.md) even though they're
         # non-Optional here, so coalesce an old NULL row to its intended
         # default rather than failing response validation.
         source_type=job.source_type or "youtube",
+        paused=bool(job.paused),
         created_at=job.created_at,
     )
 
@@ -85,6 +86,30 @@ async def cancel_job(job_id: str, db: Session = Depends(get_db)):
         job.mp3_path = None
         db.commit()
         db.refresh(job)
+    return _to_out(job)
+
+
+@router.post("/api/jobs/{job_id}/pause", response_model=JobOut)
+def pause_job(job_id: str, db: Session = Depends(get_db)):
+    job = db.get(Job, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="job not found")
+    if job.status != "playing":
+        raise HTTPException(status_code=409, detail="job is not playing")
+    job.paused = True
+    db.commit()
+    db.refresh(job)
+    return _to_out(job)
+
+
+@router.post("/api/jobs/{job_id}/resume", response_model=JobOut)
+def resume_job(job_id: str, db: Session = Depends(get_db)):
+    job = db.get(Job, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="job not found")
+    job.paused = False
+    db.commit()
+    db.refresh(job)
     return _to_out(job)
 
 

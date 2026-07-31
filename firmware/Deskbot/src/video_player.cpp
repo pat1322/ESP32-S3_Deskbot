@@ -57,6 +57,14 @@ static volatile bool g_startPlayback   = false;
 static volatile bool g_audioTaskRunning = false;
 static String        g_jobId           = "";
 
+// Website Pause/Resume (routers/queue.py's /api/jobs/{id}/pause|resume).
+// Set by playVideo()'s main loop from its existing mid-playback status
+// poll (see pollJobState() below), read by audioTaskFn on a different
+// core/task -- both just stop touching their respective sockets while
+// this is true (see the loops below for why that's safe) rather than
+// needing a separate signaling mechanism.
+static volatile bool g_videoPaused = false;
+
 // Tier_High: the server's default-quality encode. Tier_Low: a cheaper
 // fps/JPEG-compression encode of the same video, generated alongside the
 // high tier at queue time (see server/app/services/job_worker.py) so it's
@@ -90,13 +98,18 @@ static String serverBase() {
     return base;
 }
 
+struct JobPollResult {
+    bool stillPlaying = true;  // defaults true so a transient network
+    bool paused       = false; // hiccup / parse failure can't stop playback
+};
+
 // Polled roughly every VIDEO_CANCEL_CHECK_MS during playback so a
-// website-initiated cancel (which only updates the job's status
-// server-side — the device has no other way to find out) stops the
-// screen within a few seconds instead of playing the whole video out.
-// Defaults to true (keep playing) on any request/parse failure, so a
-// transient network hiccup can't stop playback on its own.
-static bool isJobStillPlaying(const String& jobId) {
+// website-initiated cancel or pause (which only update the job's status/
+// paused fields server-side — the device has no other way to find out)
+// take effect within a few seconds instead of playing the whole video
+// out regardless.
+static JobPollResult pollJobState(const String& jobId) {
+    JobPollResult result;
     g_statusCli.setInsecure();
     g_statusCli.setConnectionTimeout(4000);
     HTTPClient http;
@@ -104,15 +117,17 @@ static bool isJobStillPlaying(const String& jobId) {
     http.addHeader("X-Api-Key", DESKBOT_API_KEY);
     http.setTimeout(4000);
     int code = http.GET();
-    if (code != 200) { http.end(); g_statusCli.stop(); return true; }
+    if (code != 200) { http.end(); g_statusCli.stop(); return result; }
     String resp = http.getString();
     http.end();
     g_statusCli.stop();
 
     StaticJsonDocument<192> doc;
-    if (deserializeJson(doc, resp) != DeserializationError::Ok) return true;
+    if (deserializeJson(doc, resp) != DeserializationError::Ok) return result;
     const char* status = doc["status"] | "playing";
-    return strcmp(status, "playing") == 0;
+    result.stillPlaying = strcmp(status, "playing") == 0;
+    result.paused = doc["paused"] | false;
+    return result;
 }
 
 static void audioTaskFn(void*) {
@@ -189,8 +204,28 @@ static void audioTaskFn(void*) {
         // a valid frame boundary.
         bool audioResyncing = false;
 
+        // Mirrors the video loop's own pause handling (playVideo()): stop
+        // touching the audio socket entirely while paused (unread bytes
+        // just backpressure the server's write) and shift audioStartMs
+        // forward by the pause duration on resume, so the resync check
+        // above doesn't mistake the pause gap for having fallen behind.
+        // No explicit mute needed -- audio goes silent on its own within
+        // the I2S buffer's own drain time once no new PCM is being written.
+        uint32_t audioPauseStartMs = 0;
+        bool     audioWasPaused    = false;
+
         uint8_t buf[2048];
         while (g_playing) {
+            if (g_videoPaused) {
+                if (!audioWasPaused) { audioWasPaused = true; audioPauseStartMs = millis(); }
+                vTaskDelay(1);
+                continue;
+            }
+            if (audioWasPaused) {
+                audioStartMs += millis() - audioPauseStartMs;
+                audioWasPaused = false;
+            }
+
             int avail = s->available();
             if (avail > 0) {
                 int got = s->readBytes(buf, min(avail, (int)sizeof(buf)));
@@ -314,6 +349,7 @@ bool playVideo(const String& jobId, const String& title) {
         g_playing       = true;
         g_audioReady    = false;
         g_startPlayback = false;
+        g_videoPaused   = false;
 
         remoteLog("[Video] Attempt %d, tier=%s", attempt, tierName(tier));
 
@@ -405,6 +441,7 @@ bool playVideo(const String& jobId, const String& title) {
         int      consecutiveDiscards    = 0;
         bool     needsMidStreamDowngrade = false;
         uint32_t lastCancelCheckMs      = millis();
+        uint32_t pauseStartMs           = 0;
 
         // Read-position pointer into mjpegBuf, instead of memmove-ing the
         // whole remaining buffer after every single frame: memmove-per-frame
@@ -420,11 +457,39 @@ bool playVideo(const String& jobId, const String& title) {
 
             if (millis() - lastCancelCheckMs >= VIDEO_CANCEL_CHECK_MS) {
                 lastCancelCheckMs = millis();
-                if (!isJobStillPlaying(jobId)) {
+                JobPollResult poll = pollJobState(jobId);
+                if (!poll.stillPlaying) {
                     remoteLog("[Video] Cancelled from website, stopping");
                     remoteLogFlush();
                     break;
                 }
+                if (poll.paused != g_videoPaused) {
+                    g_videoPaused = poll.paused;
+                    if (g_videoPaused) {
+                        remoteLog("[Video] Paused from website");
+                        showStatus("Paused", COLOR_AMBER);
+                        pauseStartMs = millis();
+                    } else {
+                        remoteLog("[Video] Resumed from website");
+                        showStatus("Playing", COLOR_AMBER);
+                        // Shift the pacing clock forward by however long we
+                        // were paused, so elapsedMs/expectedMs below don't
+                        // think we fell behind schedule during the pause.
+                        playStartMs += millis() - pauseStartMs;
+                    }
+                    remoteLogFlush();
+                }
+            }
+
+            if (g_videoPaused) {
+                // Deliberately don't touch vs (the video WiFiClient) at
+                // all while paused: unread bytes just sit in the TCP
+                // receive buffer, which backpressures the server's write
+                // (StreamingResponse blocks) rather than needing an
+                // explicit pause protocol on the wire. Last-drawn frame
+                // stays on screen.
+                yield();
+                continue;
             }
 
             int avail = vs->available();
