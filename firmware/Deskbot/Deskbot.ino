@@ -103,6 +103,7 @@ static void handleDeviceStatePoll() {
 
     idleScreenSetTodoSummary(state.pendingCount, state.nextTask);
     idleScreenSetTheme(state.bgTheme);
+    idleScreenSetQuote(state.quote);
     setDeviceVolume(state.volume);
 
     if (state.pendingWifiSsid.length() > 0) {

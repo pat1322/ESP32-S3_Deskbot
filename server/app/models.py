@@ -63,3 +63,15 @@ class Todo(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Quote(Base):
+    """Short messages rotated on the idle clock screen (idle_screen.cpp,
+    the blank area between the date and the to-do line)."""
+
+    __tablename__ = "quotes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    text: Mapped[str] = mapped_column(String(64))
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

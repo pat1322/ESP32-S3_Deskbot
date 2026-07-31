@@ -12,6 +12,7 @@
 static const int BAND_X = 0,   BAND_Y = 6,   BAND_W = TFT_W, BAND_H = 50;
 static const int CLOCK_Y = 72;   // text size 4
 static const int DATE_Y  = 114;  // text size 2
+static const int QUOTE_Y = 155;  // text size 1, in the blank gap below the date
 static const int DIVIDER_Y = 196;
 static const int TODO_Y  = 210;  // text size 1
 static const int WIFI_X = TFT_W - 26, WIFI_Y = 8; // top-right signal bars
@@ -57,6 +58,9 @@ static int      lastWifiBars = -2;
 static int      cachedPending = -1;
 static String   cachedNextTask = "";
 static bool     todoDirty = true;
+
+static String   cachedQuote = "";
+static bool     quoteDirty = true;
 
 static uint16_t blend565(uint16_t fg, uint16_t bg, uint8_t alpha) {
     uint8_t fr = (fg >> 11) & 0x1F, fgn = (fg >> 5) & 0x3F, fb = fg & 0x1F;
@@ -115,6 +119,21 @@ static void renderTodoLine() {
     todoDirty = false;
 }
 
+static void renderQuoteLine() {
+    // Wipe the whole gap regardless of length so a shorter new quote
+    // doesn't leave stray characters from a longer previous one.
+    tft.fillRect(0, QUOTE_Y - 2, TFT_W, 14, TFT_BLACK);
+    if (cachedQuote.length() > 0) {
+        String line = cachedQuote;
+        if (line.length() > 48) line = line.substring(0, 45) + "...";
+        tft.setTextSize(1);
+        tft.setTextColor(COLOR_MUTED, TFT_BLACK);
+        tft.setCursor(max(0, (TFT_W - (int)line.length() * 6) / 2), QUOTE_Y);
+        tft.print(line);
+    }
+    quoteDirty = false;
+}
+
 static int wifiBars() {
     if (WiFi.status() != WL_CONNECTED) return 0;
     int32_t rssi = WiFi.RSSI();
@@ -146,6 +165,7 @@ void idleScreenEnter() {
     lastDateStr  = "\x01";
     lastWifiBars = -2;
     todoDirty    = true;
+    quoteDirty   = true;
     lastClockMs  = 0;
     lastAnimMs   = 0;
 
@@ -203,6 +223,7 @@ void idleScreenTick() {
     }
 
     if (todoDirty) renderTodoLine();
+    if (quoteDirty) renderQuoteLine();
 }
 
 void idleScreenSetTodoSummary(int pendingCount, const String& nextTask) {
@@ -210,6 +231,13 @@ void idleScreenSetTodoSummary(int pendingCount, const String& nextTask) {
         cachedPending  = pendingCount;
         cachedNextTask = nextTask;
         todoDirty      = true;
+    }
+}
+
+void idleScreenSetQuote(const String& quote) {
+    if (quote != cachedQuote) {
+        cachedQuote = quote;
+        quoteDirty  = true;
     }
 }
 

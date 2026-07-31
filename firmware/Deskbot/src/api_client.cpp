@@ -90,12 +90,17 @@ bool getDeviceState(DeviceState& out) {
     String resp = http.getString();
     http.end();
 
-    StaticJsonDocument<512> doc;
+    // Bumped from <512>: with a quote (up to 64 chars) added on top of the
+    // existing next_task (up to 256) and wifi fields, 512 was already
+    // tight enough that undersized buffers have silently failed to parse
+    // before (see getJobTitle's/getDeviceState's history).
+    StaticJsonDocument<768> doc;
     if (deserializeJson(doc, resp) != DeserializationError::Ok) return false;
     out.pendingCount = doc["pending_count"] | 0;
     out.nextTask = doc["next_task"] | "";
     out.bgTheme = doc["bg_theme"] | "drift";
     out.volume = doc["volume"] | VOLUME;
+    out.quote = doc["quote"] | "";
     out.pendingWifiSsid = doc["pending_wifi_ssid"] | "";
     out.pendingWifiPassword = doc["pending_wifi_password"] | "";
     return true;

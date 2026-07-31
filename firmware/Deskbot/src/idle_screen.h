@@ -19,6 +19,11 @@ void idleScreenTick();
 // state and redraws next time idleScreenEnter()/Tick() runs while idle).
 void idleScreenSetTodoSummary(int pendingCount, const String& nextTask);
 
+// Pushes a freshly-polled idle-screen quote (server/app/models.py's Quote
+// table, rotated server-side) — same call/redraw pattern as
+// idleScreenSetTodoSummary above. Pass "" to show nothing.
+void idleScreenSetQuote(const String& quote);
+
 // Parses one of "drift"/"starfield"/"minimal" (unknown values fall back
 // to DRIFT) and switches the ambient background style.
 void idleScreenSetTheme(const String& themeName);

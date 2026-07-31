@@ -1,14 +1,28 @@
+import time
+
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from ..auth import require_device_or_web
 from ..db import get_db
-from ..models import Todo
+from ..models import Quote, Todo
 from ..schemas import DeviceLogOut, DeviceStateOut, WifiAckIn
 from ..services import device_log
 from .settings import get_or_create_settings
 
 router = APIRouter(tags=["device"], dependencies=[Depends(require_device_or_web)])
+
+# How long each quote stays on screen before rotating to the next, in
+# seconds. Index-by-time rather than persisting a "current index" — cheap
+# and self-synchronizing across every poller (device + any open web tabs).
+QUOTE_ROTATE_S = 30
+
+
+def _pick_quote(db: Session) -> str | None:
+    quotes = db.query(Quote).order_by(Quote.id.asc()).all()
+    if not quotes:
+        return None
+    return quotes[int(time.time() / QUOTE_ROTATE_S) % len(quotes)].text
 
 
 @router.get("/device/state", response_model=DeviceStateOut)
@@ -22,6 +36,7 @@ def device_state(db: Session = Depends(get_db)):
         volume=settings.volume,
         pending_count=len(pending),
         next_task=pending[0].text if pending else None,
+        quote=_pick_quote(db),
         pending_wifi_ssid=settings.pending_wifi_ssid if applying else None,
         pending_wifi_password=settings.pending_wifi_password if applying else None,
     )

@@ -63,6 +63,18 @@ class TodoSummaryOut(BaseModel):
     next_task: str | None = None
 
 
+class QuoteIn(BaseModel):
+    text: str
+
+
+class QuoteOut(BaseModel):
+    id: int
+    text: str
+
+    class Config:
+        from_attributes = True
+
+
 class SettingsOut(BaseModel):
     bg_theme: str
     volume: float
@@ -113,6 +125,7 @@ class DeviceStateOut(BaseModel):
     volume: float
     pending_count: int
     next_task: str | None = None
+    quote: str | None = None
     pending_wifi_ssid: str | None = None
     pending_wifi_password: str | None = None
 

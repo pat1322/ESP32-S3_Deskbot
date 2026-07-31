@@ -765,7 +765,7 @@ main.col-main { min-width: 0; }
 }
 .todo-add button:hover { border-color: var(--amber); color: var(--amber); }
 
-#todo-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+#todo-list, .quote-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 
 .todo-item {
   display: flex;

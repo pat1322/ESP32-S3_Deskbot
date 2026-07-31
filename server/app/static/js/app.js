@@ -484,6 +484,52 @@ $('#clear-done').addEventListener('click', async (e) => {
   loadTodos();
 });
 
+// ── Idle quotes ──────────────────────────────────────────────────────
+
+function renderQuotes(quotes) {
+  const list = $('#quote-list');
+  list.innerHTML = '';
+  if (quotes.length === 0) {
+    list.innerHTML = '<div class="empty-note">No quotes yet — add one below.</div>';
+    return;
+  }
+  for (const q of quotes) {
+    const li = document.createElement('li');
+    li.className = 'todo-item';
+    li.innerHTML = `
+      <span>${escapeHtml(q.text)}</span>
+      <button class="todo-del" data-id="${q.id}" aria-label="Delete">&times;</button>
+    `;
+    list.appendChild(li);
+  }
+}
+
+async function loadQuotes() {
+  const res = await api('/api/quotes');
+  renderQuotes(await res.json());
+}
+
+$('#quote-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = $('#quote-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  await api('/api/quotes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  loadQuotes();
+});
+
+$('#quote-list').addEventListener('click', async (e) => {
+  const btn = e.target.closest('.todo-del');
+  if (!btn) return;
+  await api(`/api/quotes/${btn.dataset.id}`, { method: 'DELETE' });
+  loadQuotes();
+});
+
 // ── Boot ─────────────────────────────────────────────────────────────
 
 let booted = false;
@@ -494,6 +540,7 @@ function boot() {
   setInterval(tickClock, 1000);
   loadSettings();
   loadTodos();
+  loadQuotes();
   pollNowPlaying();
   setInterval(pollNowPlaying, 2500);
   pollDeviceLog();

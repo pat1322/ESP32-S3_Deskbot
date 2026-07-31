@@ -29,6 +29,7 @@ struct DeviceState {
     String nextTask;
     String bgTheme = "drift";
     float  volume = VOLUME; // pins.h boot default until the first successful poll
+    String quote;
     String pendingWifiSsid;
     String pendingWifiPassword;
 };
